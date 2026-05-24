@@ -3,3 +3,11 @@
     - Unlike studies where there is a whole year, I think it makes sense to compare the first four full weeks in September with the first four full weeks in November
     - so each Y_it is number of e-bike trips from station hour day i 
     - this way don't have to control for day of the week? Should be baked in?
+- Other specs to run
+    - instead of using station hour, do by neighborhood hour (many station hours have low counts, 46% for NYC are 0)
+    - If we do by neighborhood, also allows the potential possibility of doing OD (origin destination) neighborhood pairs
+    - Change window to include two months instead of only one month
+        - Why we aren't doing this already: because fleet composition is not necessarily fixed. Shorter time window less likely to have changed
+    - Outcome as proprition of rides that are ebike/classic
+    - Triple DiD
+- Sensitivities: test for parallel trends etc.
