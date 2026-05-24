@@ -26,6 +26,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def station_components(df: pd.DataFrame, station_weighted: bool) -> pd.DataFrame:
+    """Collapse row-level AIPTW score pieces to station clusters.
+
+    The bootstrap resamples stations, so each station needs one numerator and
+    denominator contribution. This preserves within-station dependence across
+    the 504 paired station-hours.
+    """
+
     work = df.copy()
     if station_weighted:
         work["analysis_weight"] = 1.0 / work.groupby("station_uid")["station_uid"].transform("size")
@@ -51,6 +58,14 @@ def station_components(df: pd.DataFrame, station_weighted: bool) -> pd.DataFrame
 
 
 def bootstrap_att(components: pd.DataFrame, n_bootstrap: int, random_state: int) -> tuple[float, float, float, float]:
+    """Resample station clusters and recompute the ratio ATT.
+
+    This is a fixed-nuisance bootstrap: it uses saved cross-fitted g_hat and
+    Q0_hat instead of refitting XGBoost in every bootstrap draw. That makes it
+    computationally feasible on a laptop, but it does not include uncertainty
+    from refitting the nuisance models.
+    """
+
     rng = np.random.default_rng(random_state)
     numerator = components["numerator"].to_numpy(dtype=float)
     denominator = components["denominator"].to_numpy(dtype=float)

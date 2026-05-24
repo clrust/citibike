@@ -16,6 +16,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Re-estimate the NYC ATT four times, each time dropping one control city.
+    # This checks whether the main estimate is driven by a single comparison
+    # city while keeping the same dates, outcome, covariates, and estimator.
     results = []
     for omitted in CONTROLS:
         controls = tuple(city for city in CONTROLS if city != omitted)

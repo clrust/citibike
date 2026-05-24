@@ -13,6 +13,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from panel_utils import write_csv_atomic
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -99,8 +100,7 @@ def merge_weather(panel_path: Path, weather_dirs: list[Path], event_date: str) -
 def main() -> None:
     args = parse_args()
     merged = merge_weather(args.panel, [args.weather_dir, args.fallback_weather_dir], args.event_date)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    merged.to_csv(args.out, index=False)
+    write_csv_atomic(merged, args.out)
     print(f"Wrote {len(merged):,} station-hour weather rows to {args.out}")
 
 

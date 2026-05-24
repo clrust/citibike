@@ -13,6 +13,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Prior-year placebo: repeat the September-vs-November seasonal comparison
+    # one year earlier. This probes whether NYC normally diverges from controls
+    # over the same calendar windows even without the 2025 speed-cap treatment.
     result = run_paired_weighting_analysis(
         base_estimand="NYC placebo ATT, September-November 2024",
         input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2024_sep_nov_station_hour_panel_weather.csv",

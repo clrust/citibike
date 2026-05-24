@@ -13,6 +13,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Pre-treatment placebo: compare August to September 2025 using the same
+    # NYC-vs-controls design. Because both windows are before the speed cap,
+    # this should ideally be close to zero if conditional parallel trends holds.
     result = run_paired_weighting_analysis(
         base_estimand="NYC placebo ATT, August-September 2025",
         input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2025_aug_sep_station_hour_panel_weather.csv",

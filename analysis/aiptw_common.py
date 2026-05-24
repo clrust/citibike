@@ -25,6 +25,13 @@ WEATHER_CONTINUOUS = {
 
 @dataclass(frozen=True)
 class AiptwConfig:
+    """All analysis choices that should be explicit in each result file.
+
+    The sensitivity scripts below intentionally pass these values through this
+    single config object so date windows, treated city, controls, clipping, and
+    outcome definition are visible and reproducible from the output rows.
+    """
+
     estimand: str
     station_weighted: bool
     input_path: Path
@@ -123,6 +130,14 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
 
 
 def first_three_week_window(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """Keep one analysis window and create pairing keys within that window.
+
+    The design compares each station-hour in the t0 window to the same
+    station, week-within-window, day-of-week, and hour in the t1 window. For
+    example: Monday 8am in week 1 of September is paired to Monday 8am in week
+    1 of November for the same station.
+    """
+
     out = df[(df["station_hour"] >= start) & (df["station_hour"] <= end)].copy()
     out["week_index"] = ((out["station_hour"].dt.normalize() - start).dt.days // 7 + 1).astype("int8")
     out["day_of_week"] = out["station_hour"].dt.dayofweek.astype("int8")
@@ -131,6 +146,13 @@ def first_three_week_window(df: pd.DataFrame, start: pd.Timestamp, end: pd.Times
 
 
 def weather_category(code: object) -> str:
+    """Collapse Meteostat condition codes into coarser weather categories.
+
+    The model uses indicators for these broad categories at t0 and t1. We avoid
+    very granular weather-code dummies because many specific codes are sparse
+    within a three-week window.
+    """
+
     if pd.isna(code):
         return "unknown"
     try:
@@ -157,6 +179,17 @@ def weather_category(code: object) -> str:
 
 
 def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
+    """Create the station-hour paired outcome and covariate matrix.
+
+    The outcome used by the AIPTW estimator is y_tilde = y1 - y0. Continuous
+    weather controls enter as differences between the post and pre windows.
+    Weather condition controls enter as t0 and t1 category indicators.
+
+    City/system are intentionally retained for diagnostics but excluded from
+    feature_cols, so the nuisance models condition only on the agreed weather
+    covariates rather than on city identity.
+    """
+
     usecols = [
         "station_uid",
         "city",
@@ -196,12 +229,17 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
     paired["A"] = (paired["city"] == config.treated_city).astype("int8")
     paired["y_tilde"] = paired["y1"] - paired["y0"]
 
+    # Continuous weather variables are differenced to match the paired outcome.
+    # This asks whether changes in weather between paired hours explain changes
+    # in bike-share demand between those same hours.
     feature_cols: list[str] = []
     for feature_name, col in WEATHER_CONTINUOUS.items():
         out_col = f"delta_{feature_name}"
         paired[out_col] = paired[f"{col}_t1"] - paired[f"{col}_t0"]
         feature_cols.append(out_col)
 
+    # Categorical weather is not naturally numeric, so keep separate coarse
+    # indicators for the pre-period and post-period conditions.
     paired["condition_t0"] = paired["weather_weather_condition_code_t0"].map(weather_category)
     paired["condition_t1"] = paired["weather_weather_condition_code_t1"].map(weather_category)
     condition_dummies = pd.get_dummies(
@@ -218,6 +256,14 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
 
 
 def make_station_stratified_folds(df: pd.DataFrame, n_folds: int, random_state: int) -> np.ndarray:
+    """Assign cross-fitting folds at the station level, stratified by treatment.
+
+    Keeping all rows for a station in the same fold avoids training the nuisance
+    models on some hours from a station and predicting other hours for that same
+    station. Stratifying by A keeps treated and control stations represented in
+    each fold.
+    """
+
     stations = df[["station_uid", "A"]].drop_duplicates().reset_index(drop=True)
     rng = np.random.default_rng(random_state)
     station_to_fold: dict[str, int] = {}
@@ -241,6 +287,14 @@ def import_xgboost():
 
 
 def fit_crossfit_nuisance(df: pd.DataFrame, feature_cols: list[str], config: AiptwConfig) -> pd.DataFrame:
+    """Fit cross-fitted nuisance models g(X) and Q(A, X).
+
+    g_hat is the estimated probability that a paired station-hour belongs to
+    NYC, conditional on weather covariates. Q0_hat and Q1_hat are predicted
+    paired outcomes under control and treated status. Each row is predicted by
+    models trained on other station clusters.
+    """
+
     XGBClassifier, XGBRegressor = import_xgboost()
     out = df.copy()
     out["fold"] = make_station_stratified_folds(out, config.n_folds, config.random_state)
@@ -257,6 +311,9 @@ def fit_crossfit_nuisance(df: pd.DataFrame, feature_cols: list[str], config: Aip
         train = out["fold"].to_numpy() != fold
         test = ~train
 
+        # g is a binary classifier for treatment status A. The XGBoost
+        # objective name is "binary:logistic", meaning it returns probabilities;
+        # this is the propensity-score nuisance model, not a logit regression.
         g = XGBClassifier(
             objective="binary:logistic",
             eval_metric="logloss",
@@ -271,6 +328,9 @@ def fit_crossfit_nuisance(df: pd.DataFrame, feature_cols: list[str], config: Aip
             n_jobs=-1,
             random_state=config.random_state + fold,
         )
+        # Q is the outcome regression for y_tilde. It uses squared-error loss,
+        # as discussed, with A supplied as a feature so we can predict Q(0, X)
+        # and Q(1, X) for every held-out row.
         q = XGBRegressor(
             objective="reg:squarederror",
             n_estimators=400,
@@ -289,6 +349,8 @@ def fit_crossfit_nuisance(df: pd.DataFrame, feature_cols: list[str], config: Aip
         q.fit(X_q_all.loc[train], y[train])
         out.loc[test, "g_hat_raw"] = g.predict_proba(X_g_all.loc[test])[:, 1]
 
+        # Predict both treatment states for the held-out fold. Q0_hat is used
+        # directly in the ATT score; Q1_hat is saved for diagnostics.
         X_q_test_0 = X_q_all.loc[test].copy()
         X_q_test_0["A"] = 0
         X_q_test_1 = X_q_all.loc[test].copy()
@@ -296,11 +358,20 @@ def fit_crossfit_nuisance(df: pd.DataFrame, feature_cols: list[str], config: Aip
         out.loc[test, "Q0_hat"] = q.predict(X_q_test_0)
         out.loc[test, "Q1_hat"] = q.predict(X_q_test_1)
 
+    # Clipping stabilizes inverse-propensity weights. Rows are not dropped here;
+    # result files report how many rows would have been lost under trimming.
     out["g_hat"] = out["g_hat_raw"].clip(config.clip_low, config.clip_high)
     return out
 
 
 def add_weights(df: pd.DataFrame, station_weighted: bool) -> pd.DataFrame:
+    """Attach estimand weights.
+
+    Row-weighted estimates target the average treated station-hour. Station-
+    weighted estimates give each station equal total weight, so stations with
+    more matched rows do not contribute more just because they have more rows.
+    """
+
     out = df.copy()
     if station_weighted:
         station_counts = out.groupby("station_uid")["station_uid"].transform("size")
@@ -311,6 +382,8 @@ def add_weights(df: pd.DataFrame, station_weighted: bool) -> pd.DataFrame:
 
 
 def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Compute the AIPTW ATT and closed-form row-level standard error."""
+
     out = add_weights(df, config.station_weighted)
     a = out["A"].to_numpy(dtype=float)
     y = out["y_tilde"].to_numpy(dtype=float)
@@ -323,6 +396,9 @@ def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, p
     denominator = np.sum(w * a)
     att = numerator / denominator
 
+    # Influence-function based uncertainty for the weighted sample moment. This
+    # treats the cross-fitted nuisance predictions as estimated out of fold and
+    # is the analytic SE reported in the main result files.
     denominator_bar = np.mean(w * a)
     influence = (w * h * (y - q0) - att * w * a) / denominator_bar
     se = float(np.std(influence, ddof=1) / np.sqrt(len(out)))
@@ -379,6 +455,8 @@ def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, p
 
 
 def city_diagnostics(df: pd.DataFrame, config: AiptwConfig) -> pd.DataFrame:
+    """Summarize balance, outcomes, and clipping by city."""
+
     raw_g = df["g_hat_raw"]
     outside = (raw_g < config.clip_low) | (raw_g > config.clip_high)
     tmp = df.assign(g_hat_outside=outside)
@@ -398,6 +476,8 @@ def city_diagnostics(df: pd.DataFrame, config: AiptwConfig) -> pd.DataFrame:
 
 
 def run_analysis(config: AiptwConfig) -> None:
+    """Run one analysis and write result, predictions, and city diagnostics."""
+
     paired, feature_cols = build_paired_dataset(config)
     predictions = fit_crossfit_nuisance(paired, feature_cols, config)
     result, predictions = estimate_att(predictions, config)
@@ -457,6 +537,13 @@ def run_paired_weighting_analysis(
     random_state: int = 20250524,
     write_predictions: bool = False,
 ) -> pd.DataFrame:
+    """Run one nuisance fit and report both row- and station-weighted targets.
+
+    The expensive XGBoost cross-fitting is identical for the two target
+    populations. We therefore fit nuisance functions once, then re-estimate the
+    final ATT score with row weights and station weights separately.
+    """
+
     fit_config = make_config(
         estimand=f"{base_estimand} (row-weighted)",
         station_weighted=False,

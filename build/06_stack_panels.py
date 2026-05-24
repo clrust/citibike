@@ -8,6 +8,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from panel_utils import write_csv_atomic
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -40,8 +41,7 @@ def main() -> None:
         panel["station_uid"] = panel["city"].astype(str) + ":" + panel["start_station_id"].astype(str)
     panel = panel.sort_values(["city", "station_hour", "station_uid"]).reset_index(drop=True)
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    panel.to_csv(args.out, index=False)
+    write_csv_atomic(panel, args.out)
     print(f"Wrote {len(panel):,} all-city station-hour rows to {args.out}")
 
 

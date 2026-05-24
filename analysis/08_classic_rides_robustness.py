@@ -13,6 +13,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Same design as the main specification, but replace e-bike ride counts with
+    # classic ride counts. This checks whether the estimated change is specific
+    # to the mode affected by the speed cap.
     result = run_paired_weighting_analysis(
         base_estimand="NYC ATT for classic rides",
         input_path=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv",

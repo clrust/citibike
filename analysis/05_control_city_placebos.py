@@ -14,6 +14,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Pretend each control city was treated and compare it to the other control
+    # cities. Large placebo effects here would weaken confidence that the main
+    # NYC estimate is isolating the speed-cap change rather than general shocks.
     results = []
     for treated in CONTROLS:
         placebo_controls = tuple(city for city in CONTROLS if city != treated)

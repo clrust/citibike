@@ -14,6 +14,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
+    # Estimate the ATT with NYC compared to exactly one control city at a time.
+    # These are sensitivity checks for the control population, not a replacement
+    # for the pooled-control main specification.
     results = []
     for control in CONTROLS:
         result = run_paired_weighting_analysis(

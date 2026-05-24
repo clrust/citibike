@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from panel_utils import PROJECT_ROOT, aggregate_file, build_panel, find_month_files
+from panel_utils import PROJECT_ROOT, aggregate_file, build_panel, find_month_files, write_csv_atomic
 
 
 CITY_CONFIGS = (
@@ -165,13 +165,12 @@ def build_scenario(name: str, weather_dir: Path) -> None:
 
     panel_out = scenario["panel_out"]
     weather_out = scenario["weather_out"]
-    panel_out.parent.mkdir(parents=True, exist_ok=True)
-    panel.to_csv(panel_out, index=False)
+    write_csv_atomic(panel, panel_out)
     print(f"Wrote {len(panel):,} rows to {panel_out}")
 
     weather_merge = load_weather_merge_module()
     merged = weather_merge.merge_weather(panel_out, [weather_dir, PROJECT_ROOT / "data_raw"], "2025-10-24")
-    merged.to_csv(weather_out, index=False)
+    write_csv_atomic(merged, weather_out)
     print(f"Wrote {len(merged):,} weather rows to {weather_out}")
 
 

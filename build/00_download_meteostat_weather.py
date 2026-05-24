@@ -1,13 +1,13 @@
 """
 Download hourly weather from Meteostat for the DiD build.
 
-Default output files are compatible with build/03_weather_merge.py:
+Default output files are compatible with build/07_weather_merge.py:
 
-    python3 data_raw/download_meteostat_weather.py
+    python3 build/00_download_meteostat_weather.py
 
 The default months are September 2025 and November 2025. Change them with:
 
-    python3 data_raw/download_meteostat_weather.py --months 2025-08 2025-09 2025-11 2025-12
+    python3 build/00_download_meteostat_weather.py --months 2025-08 2025-09 2025-11 2025-12
 
 Requires:
 
@@ -22,6 +22,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+from panel_utils import write_csv_atomic
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -270,7 +271,7 @@ def main() -> None:
     for city, config in STATIONS.items():
         weather = fetch_city_weather(city, config, args.months, args.max_station_distance_km)
         out = args.out_dir / config["out"]
-        weather.to_csv(out, index=False)
+        write_csv_atomic(weather, out)
         station = weather["weather_station_id"].dropna().iloc[0]
         rows_with_temp = weather["temp_f"].notna().sum() if "temp_f" in weather else 0
         print(f"Wrote {len(weather):,} {city} rows to {out} using Meteostat station {station}")

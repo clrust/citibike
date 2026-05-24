@@ -35,8 +35,10 @@ FILES = (
     ("capitalbike", "202409-capitalbikeshare-tripdata.zip", "https://s3.amazonaws.com/capitalbikeshare-data/202409-capitalbikeshare-tripdata.zip"),
     ("capitalbike", "202411-capitalbikeshare-tripdata.zip", "https://s3.amazonaws.com/capitalbikeshare-data/202411-capitalbikeshare-tripdata.zip"),
     # Indego quarterly files. 2025 Q3 is already expected to exist, but keeping
-    # it here makes the required raw set explicit and reproducible.
+    # both 2025 quarters here makes the required raw set explicit and
+    # reproducible for the September/November main specification.
     ("indego", "indego-trips-2025-q3.zip", "https://www.rideindego.com/wp-content/uploads/2025/10/indego-trips-2025-q3.zip"),
+    ("indego", "indego-trips-2025-q4.zip", "https://www.rideindego.com/wp-content/uploads/2026/01/indego-trips-2025-q4.zip"),
     ("indego", "indego-trips-2024-q3.zip", "https://www.rideindego.com/wp-content/uploads/2024/10/indego-trips-2024-q3.zip"),
     ("indego", "indego-trips-2024-q4.zip", "https://www.rideindego.com/wp-content/uploads/2025/01/indego-trips-2024-q4.zip"),
 )

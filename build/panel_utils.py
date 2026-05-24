@@ -12,6 +12,21 @@ DEFAULT_MONTHS = ("2025-09", "2025-11")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def write_csv_atomic(df: pd.DataFrame, path: Path) -> None:
+    """Write a CSV via a temporary .part file, then replace the final output.
+
+    These panels are large enough that an interrupted write can leave a
+    syntactically valid but incomplete CSV. Atomic replacement makes successful
+    completion explicit: the final path is updated only after the full CSV is
+    written.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".part")
+    df.to_csv(tmp_path, index=False)
+    tmp_path.replace(path)
+
+
 def month_token(month: str) -> str:
     return pd.Period(month, freq="M").strftime("%Y%m")
 
@@ -130,12 +145,16 @@ def aggregate_file(path: Path, months: list[str], column_map: dict[str, str]) ->
                 chunk["is_ebike"] = chunk["rideable_type"].str.contains("electric", case=False, na=False)
                 chunk["is_classic"] = ~chunk["is_ebike"]
 
-                group_cols = ["station_hour", "start_station_id", "start_station_name"]
+                # Station identity for the analysis is the station ID. Names
+                # can change over time, so they are metadata rather than panel
+                # keys; using names as keys can duplicate the same station-hour.
+                group_cols = ["station_hour", "start_station_id"]
                 agg_spec: dict[str, Any] = {
                     "trip_count": ("rideable_type", "size"),
                     "ebike_trip_count": ("is_ebike", "sum"),
                     "classic_trip_count": ("is_classic", "sum"),
                     "mean_duration_minutes": ("duration_minutes", "mean"),
+                    "start_station_name": ("start_station_name", "first"),
                 }
                 if "start_lat" in chunk.columns:
                     agg_spec["start_lat"] = ("start_lat", "mean")
@@ -167,30 +186,27 @@ def build_panel(
     treated_city: int,
     event_date: str,
 ) -> pd.DataFrame:
-    station_cols = ["start_station_id", "start_station_name"]
+    station_id_cols = ["start_station_id"]
     required_months = {str(period) for period in month_periods(months)}
-    station_months = aggregates.loc[:, station_cols + ["station_hour"]].copy()
+    station_months = aggregates.loc[:, station_id_cols + ["station_hour"]].copy()
     station_months["month"] = station_months["station_hour"].dt.to_period("M").astype(str)
     complete_stations = (
         station_months[station_months["month"].isin(required_months)]
-        .drop_duplicates(station_cols + ["month"])
-        .groupby(station_cols, dropna=False)["month"]
+        .drop_duplicates(station_id_cols + ["month"])
+        .groupby(station_id_cols, dropna=False)["month"]
         .nunique()
     )
-    complete_stations = complete_stations[complete_stations == len(required_months)].reset_index()[station_cols]
+    complete_stations = complete_stations[complete_stations == len(required_months)].reset_index()[station_id_cols]
 
-    coord_aggs = {}
+    station_aggs = {"start_station_name": "first"}
     if "start_lat" in stations.columns:
-        coord_aggs["start_lat"] = "median"
+        station_aggs["start_lat"] = "median"
     if "start_lng" in stations.columns:
-        coord_aggs["start_lng"] = "median"
+        station_aggs["start_lng"] = "median"
 
-    if coord_aggs:
-        station_index = stations.groupby(station_cols, dropna=False).agg(coord_aggs).reset_index()
-    else:
-        station_index = stations.loc[:, station_cols].drop_duplicates()
-    station_index = station_index.merge(complete_stations, on=station_cols, how="inner")
-    station_index = station_index.sort_values(station_cols)
+    station_index = stations.groupby(station_id_cols, dropna=False).agg(station_aggs).reset_index()
+    station_index = station_index.merge(complete_stations, on=station_id_cols, how="inner")
+    station_index = station_index.sort_values(station_id_cols)
     panel = station_index.merge(requested_hours(months), how="cross")
 
     numeric_aggs = {
@@ -204,11 +220,11 @@ def build_panel(
             numeric_aggs[coord] = "mean"
 
     collapsed = (
-        aggregates.groupby(["station_hour", "start_station_id", "start_station_name"], dropna=False)
+        aggregates.groupby(["station_hour", "start_station_id"], dropna=False)
         .agg(numeric_aggs)
         .reset_index()
     )
-    panel = panel.merge(collapsed, on=["station_hour", "start_station_id", "start_station_name"], how="left", suffixes=("", "_obs"))
+    panel = panel.merge(collapsed, on=["station_hour", "start_station_id"], how="left", suffixes=("", "_obs"))
 
     for col in ("trip_count", "ebike_trip_count", "classic_trip_count"):
         panel[col] = panel[col].fillna(0).astype("int64")
@@ -279,6 +295,5 @@ def build_city_panel(
         treated_city,
         args.event_date,
     )
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    panel.to_csv(args.out, index=False)
+    write_csv_atomic(panel, args.out)
     print(f"Wrote {len(panel):,} {system} station-hour rows to {args.out}")

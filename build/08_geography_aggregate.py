@@ -15,6 +15,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from panel_utils import write_csv_atomic
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -86,8 +87,7 @@ def main() -> None:
     panel = pd.read_csv(args.panel, parse_dates=["station_hour"], low_memory=False)
     panel = add_geography(panel, args)
     geography = aggregate(panel)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    geography.to_csv(args.out, index=False)
+    write_csv_atomic(geography, args.out)
     print(f"Wrote {len(geography):,} geography-hour rows to {args.out}")
 
 
