@@ -27,7 +27,12 @@ def requested_hours(months: list[str]) -> pd.DataFrame:
     return pd.DataFrame({"station_hour": pd.DatetimeIndex(hours)})
 
 
-def find_month_files(raw_dirs: list[Path], months: list[str], file_tokens: tuple[str, ...]) -> list[Path]:
+def find_month_files(
+    raw_dirs: list[Path],
+    months: list[str],
+    file_tokens: tuple[str, ...],
+    exclude_prefixes: tuple[str, ...] = (),
+) -> list[Path]:
     files: list[Path] = []
     for month in months:
         yyyymm = month_token(month)
@@ -41,6 +46,8 @@ def find_month_files(raw_dirs: list[Path], months: list[str], file_tokens: tuple
                 if not path.is_file() or path.suffix.lower() not in {".csv", ".zip"}:
                     continue
                 name = path.name.lower()
+                if any(name.startswith(prefix.lower()) for prefix in exclude_prefixes):
+                    continue
                 if not any(token in name for token in file_tokens):
                     continue
                 if yyyymm in name:
@@ -174,9 +181,9 @@ def build_panel(
 
     coord_aggs = {}
     if "start_lat" in stations.columns:
-        coord_aggs["start_lat"] = "mean"
+        coord_aggs["start_lat"] = "median"
     if "start_lng" in stations.columns:
-        coord_aggs["start_lng"] = "mean"
+        coord_aggs["start_lng"] = "median"
 
     if coord_aggs:
         station_index = stations.groupby(station_cols, dropna=False).agg(coord_aggs).reset_index()
@@ -244,13 +251,14 @@ def build_city_panel(
     city: str,
     system: str,
     treated_city: int,
+    exclude_prefixes: tuple[str, ...] = (),
 ) -> None:
     args = parse_city_args(
         description,
         PROJECT_ROOT / "data_raw" / raw_subdir,
         PROJECT_ROOT / "data_clean" / out_name,
     )
-    files = find_month_files([args.raw_dir, args.fallback_raw_dir], args.months, file_tokens)
+    files = find_month_files([args.raw_dir, args.fallback_raw_dir], args.months, file_tokens, exclude_prefixes)
 
     aggregates: list[pd.DataFrame] = []
     stations: list[pd.DataFrame] = []
