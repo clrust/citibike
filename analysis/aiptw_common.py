@@ -35,6 +35,53 @@ class AiptwConfig:
     clip_low: float
     clip_high: float
     random_state: int
+    t0_start: pd.Timestamp
+    t0_end: pd.Timestamp
+    t1_start: pd.Timestamp
+    t1_end: pd.Timestamp
+    treated_city: str
+    control_cities: tuple[str, ...] | None
+    outcome_col: str
+
+
+def make_config(
+    *,
+    estimand: str,
+    station_weighted: bool,
+    input_path: Path,
+    results_dir: Path,
+    output_stem: str,
+    n_folds: int = 5,
+    clip_low: float = 0.01,
+    clip_high: float = 0.99,
+    random_state: int = 20250524,
+    t0_start: str = "2025-09-01",
+    t0_end: str = "2025-09-21 23:00:00",
+    t1_start: str = "2025-11-03",
+    t1_end: str = "2025-11-23 23:00:00",
+    treated_city: str = "nyc",
+    control_cities: tuple[str, ...] | None = None,
+    outcome_col: str = "ebike_trip_count",
+) -> AiptwConfig:
+    return AiptwConfig(
+        estimand=estimand,
+        station_weighted=station_weighted,
+        input_path=input_path,
+        result_path=results_dir / f"{output_stem}.csv",
+        prediction_path=results_dir / f"{output_stem}_predictions.csv",
+        diagnostics_path=results_dir / f"{output_stem}_city_diagnostics.csv",
+        n_folds=n_folds,
+        clip_low=clip_low,
+        clip_high=clip_high,
+        random_state=random_state,
+        t0_start=pd.Timestamp(t0_start),
+        t0_end=pd.Timestamp(t0_end),
+        t1_start=pd.Timestamp(t1_start),
+        t1_end=pd.Timestamp(t1_end),
+        treated_city=treated_city,
+        control_cities=control_cities,
+        outcome_col=outcome_col,
+    )
 
 
 def parse_args(description: str, estimand: str, station_weighted: bool) -> AiptwConfig:
@@ -45,20 +92,33 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
     parser.add_argument("--clip-low", type=float, default=0.01)
     parser.add_argument("--clip-high", type=float, default=0.99)
     parser.add_argument("--random-state", type=int, default=20250524)
+    parser.add_argument("--t0-start", default=str(T0_START.date()))
+    parser.add_argument("--t0-end", default=str(T0_END))
+    parser.add_argument("--t1-start", default=str(T1_START.date()))
+    parser.add_argument("--t1-end", default=str(T1_END))
+    parser.add_argument("--treated-city", default="nyc")
+    parser.add_argument("--control-cities", nargs="+")
+    parser.add_argument("--outcome-col", default="ebike_trip_count")
     args = parser.parse_args()
 
     stem = "02_aiptw_att_station_weighted" if station_weighted else "01_aiptw_att_row_weighted"
-    return AiptwConfig(
+    return make_config(
         estimand=estimand,
         station_weighted=station_weighted,
         input_path=args.input,
-        result_path=args.results_dir / f"{stem}.csv",
-        prediction_path=args.results_dir / f"{stem}_predictions.csv",
-        diagnostics_path=args.results_dir / f"{stem}_city_diagnostics.csv",
+        results_dir=args.results_dir,
+        output_stem=stem,
         n_folds=args.n_folds,
         clip_low=args.clip_low,
         clip_high=args.clip_high,
         random_state=args.random_state,
+        t0_start=args.t0_start,
+        t0_end=args.t0_end,
+        t1_start=args.t1_start,
+        t1_end=args.t1_end,
+        treated_city=args.treated_city,
+        control_cities=tuple(args.control_cities) if args.control_cities else None,
+        outcome_col=args.outcome_col,
     )
 
 
@@ -96,13 +156,13 @@ def weather_category(code: object) -> str:
     return "unknown"
 
 
-def build_paired_dataset(input_path: Path) -> tuple[pd.DataFrame, list[str]]:
+def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
     usecols = [
         "station_uid",
         "city",
         "system",
         "station_hour",
-        "ebike_trip_count",
+        config.outcome_col,
         "weather_temp_c",
         "weather_precip_mm",
         "weather_snow_mm",
@@ -110,24 +170,30 @@ def build_paired_dataset(input_path: Path) -> tuple[pd.DataFrame, list[str]]:
         "weather_wind_speed_kph",
         "weather_weather_condition_code",
     ]
-    panel = pd.read_csv(input_path, usecols=usecols, parse_dates=["station_hour"], low_memory=False)
+    panel = pd.read_csv(config.input_path, usecols=usecols, parse_dates=["station_hour"], low_memory=False)
+    keep_cities = {config.treated_city}
+    if config.control_cities is None:
+        keep_cities.update(city for city in panel["city"].dropna().unique() if city != config.treated_city)
+    else:
+        keep_cities.update(config.control_cities)
+    panel = panel[panel["city"].isin(keep_cities)].copy()
     panel["weather_snow_mm"] = panel["weather_snow_mm"].fillna(0)
 
     keys = ["station_uid", "week_index", "day_of_week", "hour"]
     meta_cols = ["station_uid", "city", "system", "week_index", "day_of_week", "hour"]
     weather_cols = list(WEATHER_CONTINUOUS.values()) + ["weather_weather_condition_code"]
 
-    t0 = first_three_week_window(panel, T0_START, T0_END)
-    t1 = first_three_week_window(panel, T1_START, T1_END)
-    t0 = t0.loc[:, meta_cols + ["ebike_trip_count", "station_hour"] + weather_cols].rename(
-        columns={"ebike_trip_count": "y0", "station_hour": "station_hour_t0"}
+    t0 = first_three_week_window(panel, config.t0_start, config.t0_end)
+    t1 = first_three_week_window(panel, config.t1_start, config.t1_end)
+    t0 = t0.loc[:, meta_cols + [config.outcome_col, "station_hour"] + weather_cols].rename(
+        columns={config.outcome_col: "y0", "station_hour": "station_hour_t0"}
     )
-    t1 = t1.loc[:, keys + ["ebike_trip_count", "station_hour"] + weather_cols].rename(
-        columns={"ebike_trip_count": "y1", "station_hour": "station_hour_t1"}
+    t1 = t1.loc[:, keys + [config.outcome_col, "station_hour"] + weather_cols].rename(
+        columns={config.outcome_col: "y1", "station_hour": "station_hour_t1"}
     )
 
     paired = t0.merge(t1, on=keys, how="inner", suffixes=("_t0", "_t1"), validate="one_to_one")
-    paired["A"] = (paired["city"] == "nyc").astype("int8")
+    paired["A"] = (paired["city"] == config.treated_city).astype("int8")
     paired["y_tilde"] = paired["y1"] - paired["y0"]
 
     feature_cols: list[str] = []
@@ -272,6 +338,13 @@ def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, p
         [
             {
                 "estimand": config.estimand,
+                "outcome_col": config.outcome_col,
+                "treated_city": config.treated_city,
+                "control_cities": ",".join(config.control_cities) if config.control_cities else "all_except_treated",
+                "t0_start": str(config.t0_start),
+                "t0_end": str(config.t0_end),
+                "t1_start": str(config.t1_start),
+                "t1_end": str(config.t1_end),
                 "att": float(att),
                 "standard_error": se,
                 "ci_low": ci_low,
@@ -325,7 +398,7 @@ def city_diagnostics(df: pd.DataFrame, config: AiptwConfig) -> pd.DataFrame:
 
 
 def run_analysis(config: AiptwConfig) -> None:
-    paired, feature_cols = build_paired_dataset(config.input_path)
+    paired, feature_cols = build_paired_dataset(config)
     predictions = fit_crossfit_nuisance(paired, feature_cols, config)
     result, predictions = estimate_att(predictions, config)
     diagnostics = city_diagnostics(predictions, config)
@@ -363,3 +436,104 @@ def run_analysis(config: AiptwConfig) -> None:
     print(f"Wrote result to {config.result_path}")
     print(f"Wrote predictions to {config.prediction_path}")
     print(f"Wrote diagnostics to {config.diagnostics_path}")
+
+
+def run_paired_weighting_analysis(
+    *,
+    base_estimand: str,
+    input_path: Path,
+    results_dir: Path,
+    output_stem: str,
+    t0_start: str,
+    t0_end: str,
+    t1_start: str,
+    t1_end: str,
+    treated_city: str = "nyc",
+    control_cities: tuple[str, ...] | None = None,
+    outcome_col: str = "ebike_trip_count",
+    n_folds: int = 5,
+    clip_low: float = 0.01,
+    clip_high: float = 0.99,
+    random_state: int = 20250524,
+    write_predictions: bool = False,
+) -> pd.DataFrame:
+    fit_config = make_config(
+        estimand=f"{base_estimand} (row-weighted)",
+        station_weighted=False,
+        input_path=input_path,
+        results_dir=results_dir,
+        output_stem=f"{output_stem}_row_weighted",
+        n_folds=n_folds,
+        clip_low=clip_low,
+        clip_high=clip_high,
+        random_state=random_state,
+        t0_start=t0_start,
+        t0_end=t0_end,
+        t1_start=t1_start,
+        t1_end=t1_end,
+        treated_city=treated_city,
+        control_cities=control_cities,
+        outcome_col=outcome_col,
+    )
+    paired, feature_cols = build_paired_dataset(fit_config)
+    predictions = fit_crossfit_nuisance(paired, feature_cols, fit_config)
+
+    results = []
+    for station_weighted, suffix, estimand in (
+        (False, "row_weighted", f"{base_estimand} (row-weighted)"),
+        (True, "station_weighted", f"{base_estimand} (station-weighted)"),
+    ):
+        config = make_config(
+            estimand=estimand,
+            station_weighted=station_weighted,
+            input_path=input_path,
+            results_dir=results_dir,
+            output_stem=f"{output_stem}_{suffix}",
+            n_folds=n_folds,
+            clip_low=clip_low,
+            clip_high=clip_high,
+            random_state=random_state,
+            t0_start=t0_start,
+            t0_end=t0_end,
+            t1_start=t1_start,
+            t1_end=t1_end,
+            treated_city=treated_city,
+            control_cities=control_cities,
+            outcome_col=outcome_col,
+        )
+        result, estimated = estimate_att(predictions, config)
+        diagnostics = city_diagnostics(estimated, config)
+        config.result_path.parent.mkdir(parents=True, exist_ok=True)
+        result.to_csv(config.result_path, index=False)
+        diagnostics.to_csv(config.diagnostics_path, index=False)
+        if write_predictions:
+            prediction_cols = [
+                "station_uid",
+                "city",
+                "system",
+                "week_index",
+                "day_of_week",
+                "hour",
+                "station_hour_t0",
+                "station_hour_t1",
+                "A",
+                "y0",
+                "y1",
+                "y_tilde",
+                *feature_cols,
+                "condition_t0",
+                "condition_t1",
+                "g_hat_raw",
+                "g_hat",
+                "Q0_hat",
+                "Q1_hat",
+                "aiptw_score",
+                "influence_value",
+                "analysis_weight",
+                "fold",
+            ]
+            estimated.loc[:, prediction_cols].to_csv(config.prediction_path, index=False)
+        results.append(result)
+        print(f"Wrote {suffix} result to {config.result_path}")
+        print(f"Wrote {suffix} diagnostics to {config.diagnostics_path}")
+    return pd.concat(results, ignore_index=True)
