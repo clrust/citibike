@@ -44,6 +44,30 @@ STATIONS = {
         "preferred_icaos": ("KORD",),
         "out": "chicago_weather.csv",
     },
+    "philadelphia": {
+        "name": "Philadelphia International Airport",
+        "latitude": 39.8729,
+        "longitude": -75.2437,
+        "timezone": "America/New_York",
+        "preferred_icaos": ("KPHL",),
+        "out": "philadelphia_weather.csv",
+    },
+    "boston": {
+        "name": "Boston Logan International Airport",
+        "latitude": 42.3656,
+        "longitude": -71.0096,
+        "timezone": "America/New_York",
+        "preferred_icaos": ("KBOS",),
+        "out": "boston_weather.csv",
+    },
+    "washington_dc": {
+        "name": "Washington Reagan National Airport",
+        "latitude": 38.8512,
+        "longitude": -77.0402,
+        "timezone": "America/New_York",
+        "preferred_icaos": ("KDCA",),
+        "out": "washington_dc_weather.csv",
+    },
 }
 
 

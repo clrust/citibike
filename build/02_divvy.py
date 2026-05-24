@@ -190,6 +190,17 @@ def aggregate_file(path: Path, months: list[str]) -> tuple[pd.DataFrame, pd.Data
 
 def build_panel(aggregates: pd.DataFrame, stations: pd.DataFrame, months: list[str]) -> pd.DataFrame:
     station_cols = ["start_station_id", "start_station_name"]
+    required_months = {str(period) for period in month_periods(months)}
+    station_months = aggregates.loc[:, station_cols + ["station_hour"]].copy()
+    station_months["month"] = station_months["station_hour"].dt.to_period("M").astype(str)
+    complete_stations = (
+        station_months[station_months["month"].isin(required_months)]
+        .drop_duplicates(station_cols + ["month"])
+        .groupby(station_cols, dropna=False)["month"]
+        .nunique()
+    )
+    complete_stations = complete_stations[complete_stations == len(required_months)].reset_index()[station_cols]
+
     coord_aggs = {}
     if "start_lat" in stations.columns:
         coord_aggs["start_lat"] = "mean"
@@ -200,6 +211,7 @@ def build_panel(aggregates: pd.DataFrame, stations: pd.DataFrame, months: list[s
         station_index = stations.groupby(station_cols, dropna=False).agg(coord_aggs).reset_index()
     else:
         station_index = stations.loc[:, station_cols].drop_duplicates()
+    station_index = station_index.merge(complete_stations, on=station_cols, how="inner")
     station_index = station_index.sort_values(station_cols)
     hours = requested_hours(months)
     panel = station_index.merge(hours, how="cross")
@@ -232,6 +244,7 @@ def build_panel(aggregates: pd.DataFrame, stations: pd.DataFrame, months: list[s
 
     panel["city"] = "chicago"
     panel["system"] = "divvy"
+    panel["station_uid"] = panel["city"] + ":" + panel["start_station_id"].astype("string")
     panel["treated_city"] = 0
     panel["post_speed_limit"] = (panel["station_hour"] >= pd.Timestamp("2025-10-24")).astype("int8")
     panel["month"] = panel["station_hour"].dt.to_period("M").astype(str)

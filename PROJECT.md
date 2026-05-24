@@ -1,0 +1,5 @@
+- To do
+- Run main spec with all controls pooled (September, November)
+    - Unlike studies where there is a whole year, I think it makes sense to compare the first four full weeks in September with the first four full weeks in November
+    - so each Y_it is number of e-bike trips from station hour day i 
+    - this way don't have to control for day of the week? Should be baked in?
