@@ -31,3 +31,4 @@ tables/
 # Python
 __pycache__/
 *.pyc
+.meteostat_cache/
