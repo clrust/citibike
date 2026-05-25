@@ -18,7 +18,7 @@ def main() -> None:
     # this should ideally be close to zero if conditional parallel trends holds.
     result = run_paired_weighting_analysis(
         base_estimand="NYC placebo ATT, August-September 2025",
-        input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2025_aug_sep_station_hour_panel_weather.csv",
+        input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2025_aug_sep_station_hour_panel_weather_filled50.csv",
         results_dir=RESULTS_DIR,
         output_stem="placebo_2025_aug_sep",
         t0_start="2025-08-04",

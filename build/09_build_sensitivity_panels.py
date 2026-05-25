@@ -10,7 +10,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from panel_utils import PROJECT_ROOT, aggregate_file, build_panel, find_month_files, write_csv_atomic
+from panel_utils import (
+    PROJECT_ROOT,
+    aggregate_file,
+    build_panel,
+    find_month_files,
+    first_three_full_week_windows,
+    write_csv_atomic,
+)
 
 
 CITY_CONFIGS = (
@@ -152,6 +159,7 @@ def build_city(config: dict, months: list[str]) -> pd.DataFrame:
         config["system"],
         config["treated_city"],
         "2025-10-24",
+        presence_windows=first_three_full_week_windows(months),
     )
 
 

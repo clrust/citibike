@@ -42,6 +42,25 @@ def requested_hours(months: list[str]) -> pd.DataFrame:
     return pd.DataFrame({"station_hour": pd.DatetimeIndex(hours)})
 
 
+def first_three_full_week_windows(months: list[str]) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """Return the first three full Monday-Sunday weeks for each month.
+
+    Station retention uses these windows by default because the causal design
+    compares only these exact windows, not the full calendar months.
+    """
+
+    windows: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+    for period in month_periods(months):
+        first_day = pd.Timestamp(period.start_time).normalize()
+        days_until_monday = (7 - first_day.dayofweek) % 7
+        start = first_day + pd.Timedelta(days=days_until_monday)
+        end = start + pd.Timedelta(days=21) - pd.Timedelta(hours=1)
+        if end > pd.Timestamp(period.end_time).floor("h"):
+            raise ValueError(f"Month {period} does not contain three full Monday-Sunday weeks")
+        windows.append((start, end))
+    return windows
+
+
 def find_month_files(
     raw_dirs: list[Path],
     months: list[str],
@@ -185,18 +204,28 @@ def build_panel(
     system: str,
     treated_city: int,
     event_date: str,
+    presence_windows: list[tuple[pd.Timestamp, pd.Timestamp]] | None = None,
 ) -> pd.DataFrame:
     station_id_cols = ["start_station_id"]
-    required_months = {str(period) for period in month_periods(months)}
-    station_months = aggregates.loc[:, station_id_cols + ["station_hour"]].copy()
-    station_months["month"] = station_months["station_hour"].dt.to_period("M").astype(str)
+    presence_windows = presence_windows or first_three_full_week_windows(months)
+
+    presence_pieces: list[pd.DataFrame] = []
+    for idx, (start, end) in enumerate(presence_windows):
+        in_window = aggregates["station_hour"].between(start, end)
+        if in_window.any():
+            piece = aggregates.loc[in_window, station_id_cols].drop_duplicates().copy()
+            piece["presence_window"] = idx
+            presence_pieces.append(piece)
+    if not presence_pieces:
+        raise RuntimeError(f"No {system} station activity found inside the required presence windows.")
+
+    station_presence = pd.concat(presence_pieces, ignore_index=True)
     complete_stations = (
-        station_months[station_months["month"].isin(required_months)]
-        .drop_duplicates(station_id_cols + ["month"])
-        .groupby(station_id_cols, dropna=False)["month"]
+        station_presence.drop_duplicates(station_id_cols + ["presence_window"])
+        .groupby(station_id_cols, dropna=False)["presence_window"]
         .nunique()
     )
-    complete_stations = complete_stations[complete_stations == len(required_months)].reset_index()[station_id_cols]
+    complete_stations = complete_stations[complete_stations == len(presence_windows)].reset_index()[station_id_cols]
 
     station_aggs = {"start_station_name": "first"}
     if "start_lat" in stations.columns:
@@ -250,6 +279,16 @@ def build_panel(
 def parse_city_args(description: str, raw_dir: Path, out: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--months", nargs="+", default=list(DEFAULT_MONTHS))
+    parser.add_argument(
+        "--presence-window",
+        nargs=2,
+        action="append",
+        metavar=("START", "END"),
+        help=(
+            "Require retained stations to have at least one trip in each START END window. "
+            "Defaults to the first three full Monday-Sunday weeks of each requested month."
+        ),
+    )
     parser.add_argument("--raw-dir", type=Path, default=raw_dir)
     parser.add_argument("--fallback-raw-dir", type=Path, default=PROJECT_ROOT / "data_raw")
     parser.add_argument("--out", type=Path, default=out)
@@ -286,6 +325,10 @@ def build_city_panel(
     if not aggregates:
         raise RuntimeError(f"No {system} trips remained after filtering to the requested months.")
 
+    presence_windows = None
+    if args.presence_window:
+        presence_windows = [(pd.Timestamp(start), pd.Timestamp(end)) for start, end in args.presence_window]
+
     panel = build_panel(
         pd.concat(aggregates, ignore_index=True),
         pd.concat(stations, ignore_index=True),
@@ -294,6 +337,7 @@ def build_city_panel(
         system,
         treated_city,
         args.event_date,
+        presence_windows=presence_windows,
     )
     write_csv_atomic(panel, args.out)
     print(f"Wrote {len(panel):,} {system} station-hour rows to {args.out}")

@@ -18,7 +18,7 @@ def main() -> None:
     # over the same calendar windows even without the 2025 speed-cap treatment.
     result = run_paired_weighting_analysis(
         base_estimand="NYC placebo ATT, September-November 2024",
-        input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2024_sep_nov_station_hour_panel_weather.csv",
+        input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "2024_sep_nov_station_hour_panel_weather_filled50.csv",
         results_dir=RESULTS_DIR,
         output_stem="placebo_2024_sep_nov",
         t0_start="2024-09-02",

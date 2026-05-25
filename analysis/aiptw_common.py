@@ -49,6 +49,7 @@ class AiptwConfig:
     treated_city: str
     control_cities: tuple[str, ...] | None
     outcome_col: str
+    include_time_controls: bool
 
 
 def make_config(
@@ -69,6 +70,7 @@ def make_config(
     treated_city: str = "nyc",
     control_cities: tuple[str, ...] | None = None,
     outcome_col: str = "ebike_trip_count",
+    include_time_controls: bool = False,
 ) -> AiptwConfig:
     return AiptwConfig(
         estimand=estimand,
@@ -88,6 +90,7 @@ def make_config(
         treated_city=treated_city,
         control_cities=control_cities,
         outcome_col=outcome_col,
+        include_time_controls=include_time_controls,
     )
 
 
@@ -106,6 +109,7 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
     parser.add_argument("--treated-city", default="nyc")
     parser.add_argument("--control-cities", nargs="+")
     parser.add_argument("--outcome-col", default="ebike_trip_count")
+    parser.add_argument("--include-time-controls", action="store_true")
     args = parser.parse_args()
 
     stem = "02_aiptw_att_station_weighted" if station_weighted else "01_aiptw_att_row_weighted"
@@ -126,6 +130,7 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
         treated_city=args.treated_city,
         control_cities=tuple(args.control_cities) if args.control_cities else None,
         outcome_col=args.outcome_col,
+        include_time_controls=args.include_time_controls,
     )
 
 
@@ -250,6 +255,16 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
     )
     paired = pd.concat([paired, condition_dummies], axis=1)
     feature_cols.extend(condition_dummies.columns.to_list())
+
+    if config.include_time_controls:
+        time_dummies = pd.get_dummies(
+            paired[["hour", "day_of_week", "week_index"]],
+            columns=["hour", "day_of_week", "week_index"],
+            prefix=["hour", "day_of_week", "week_index"],
+            dtype="int8",
+        )
+        paired = pd.concat([paired, time_dummies], axis=1)
+        feature_cols.extend(time_dummies.columns.to_list())
 
     paired = paired.sort_values(["city", "station_uid", "week_index", "day_of_week", "hour"]).reset_index(drop=True)
     return paired, feature_cols
@@ -415,6 +430,7 @@ def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, p
             {
                 "estimand": config.estimand,
                 "outcome_col": config.outcome_col,
+                "include_time_controls": config.include_time_controls,
                 "treated_city": config.treated_city,
                 "control_cities": ",".join(config.control_cities) if config.control_cities else "all_except_treated",
                 "t0_start": str(config.t0_start),
@@ -536,6 +552,7 @@ def run_paired_weighting_analysis(
     clip_high: float = 0.99,
     random_state: int = 20250524,
     write_predictions: bool = False,
+    include_time_controls: bool = False,
 ) -> pd.DataFrame:
     """Run one nuisance fit and report both row- and station-weighted targets.
 
@@ -561,6 +578,7 @@ def run_paired_weighting_analysis(
         treated_city=treated_city,
         control_cities=control_cities,
         outcome_col=outcome_col,
+        include_time_controls=include_time_controls,
     )
     paired, feature_cols = build_paired_dataset(fit_config)
     predictions = fit_crossfit_nuisance(paired, feature_cols, fit_config)
@@ -587,6 +605,7 @@ def run_paired_weighting_analysis(
             treated_city=treated_city,
             control_cities=control_cities,
             outcome_col=outcome_col,
+            include_time_controls=include_time_controls,
         )
         result, estimated = estimate_att(predictions, config)
         diagnostics = city_diagnostics(estimated, config)
