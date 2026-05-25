@@ -8,7 +8,7 @@ Did the speed cap reduce demand for Citi Bike e-bikes?
 
 ## Identification Strategy
 
-Non-parametric difference-in-differences comparing NYC Citi Bike outcomes to Chicago Divvy outcomes.
+Non-parametric difference-in-differences comparing NYC Citi Bike outcomes to Chicago Divvy, Philadelphia Indego, Washginton D.C. CaptialBike, and Boston Bluebike outcomes.
 
 ## Estimation Strategy
 
