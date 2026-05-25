@@ -1,6 +1,6 @@
 # Citi Bike E-Bike Speed Cap Project
 
-This project studies the impact of NYC's October 24, 2025 Citi Bike e-bike speed cap using difference-in-differences methods.
+This project studies the impact of NYC's October 24, 2025 Citi Bike e-bike speed cap using difference-in-differences methods. Study design is human, but coding relies on codex.
 
 ## Research Question
 
