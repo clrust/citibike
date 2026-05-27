@@ -1,9 +1,9 @@
 """
-Compute station-level bootstrap confidence intervals for the main specification.
+Compute station-level bootstrap CIs for the original September-November spec.
 
-This uses the saved cross-fitted nuisance predictions from the main e-bike
-specification and resamples station_uid clusters. It does not refit XGBoost in
-each bootstrap replicate.
+This uses saved cross-fitted nuisance predictions from the original
+September-November e-bike specification and resamples station_uid clusters. It
+does not refit XGBoost in each bootstrap replicate.
 """
 
 from __future__ import annotations

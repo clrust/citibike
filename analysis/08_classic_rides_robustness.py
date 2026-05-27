@@ -1,5 +1,5 @@
 """
-Run the main paired AIPTW design with classic ride counts as the outcome.
+Run the original September-November paired design with classic rides as outcome.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
-    # Same design as the main specification, but replace e-bike ride counts with
-    # classic ride counts. This checks whether the estimated change is specific
-    # to the mode affected by the speed cap.
+    # Same date window as the original September-November specification, but
+    # replace e-bike ride counts with classic ride counts. This checks whether
+    # the estimated change is specific to the mode affected by the speed cap.
     result = run_paired_weighting_analysis(
         base_estimand="NYC ATT for classic rides",
         input_path=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv",

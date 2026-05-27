@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +22,13 @@ WEATHER_CONTINUOUS = {
     "snow_mm": "weather_snow_mm",
     "relative_humidity": "weather_relative_humidity",
     "wind_speed_kph": "weather_wind_speed_kph",
+}
+CITY_SOLAR = {
+    "nyc": {"latitude": 40.7829, "longitude": -73.9654, "timezone": "America/New_York"},
+    "chicago": {"latitude": 41.9742, "longitude": -87.9073, "timezone": "America/Chicago"},
+    "philadelphia": {"latitude": 39.8729, "longitude": -75.2437, "timezone": "America/New_York"},
+    "boston": {"latitude": 42.3656, "longitude": -71.0096, "timezone": "America/New_York"},
+    "washington_dc": {"latitude": 38.8512, "longitude": -77.0402, "timezone": "America/New_York"},
 }
 
 
@@ -50,6 +59,7 @@ class AiptwConfig:
     control_cities: tuple[str, ...] | None
     outcome_col: str
     include_time_controls: bool
+    include_daylight_controls: bool
 
 
 def make_config(
@@ -71,6 +81,7 @@ def make_config(
     control_cities: tuple[str, ...] | None = None,
     outcome_col: str = "ebike_trip_count",
     include_time_controls: bool = False,
+    include_daylight_controls: bool = False,
 ) -> AiptwConfig:
     return AiptwConfig(
         estimand=estimand,
@@ -91,6 +102,7 @@ def make_config(
         control_cities=control_cities,
         outcome_col=outcome_col,
         include_time_controls=include_time_controls,
+        include_daylight_controls=include_daylight_controls,
     )
 
 
@@ -110,6 +122,7 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
     parser.add_argument("--control-cities", nargs="+")
     parser.add_argument("--outcome-col", default="ebike_trip_count")
     parser.add_argument("--include-time-controls", action="store_true")
+    parser.add_argument("--include-daylight-controls", action="store_true")
     args = parser.parse_args()
 
     stem = "02_aiptw_att_station_weighted" if station_weighted else "01_aiptw_att_row_weighted"
@@ -131,16 +144,103 @@ def parse_args(description: str, estimand: str, station_weighted: bool) -> Aiptw
         control_cities=tuple(args.control_cities) if args.control_cities else None,
         outcome_col=args.outcome_col,
         include_time_controls=args.include_time_controls,
+        include_daylight_controls=args.include_daylight_controls,
     )
 
 
-def first_three_week_window(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-    """Keep one analysis window and create pairing keys within that window.
+def _solar_event_utc_minutes(date: pd.Timestamp, latitude: float, longitude: float, sunrise: bool) -> float | None:
+    """Approximate sunrise/sunset in UTC minutes using the NOAA solar formula."""
+
+    n = date.dayofyear
+    lng_hour = longitude / 15.0
+    event_hour = 6 if sunrise else 18
+    t = n + ((event_hour - lng_hour) / 24.0)
+    mean_anomaly = (0.9856 * t) - 3.289
+    true_longitude = (
+        mean_anomaly
+        + (1.916 * math.sin(math.radians(mean_anomaly)))
+        + (0.020 * math.sin(math.radians(2 * mean_anomaly)))
+        + 282.634
+    ) % 360
+    right_ascension = math.degrees(math.atan(0.91764 * math.tan(math.radians(true_longitude)))) % 360
+    right_ascension += (math.floor(true_longitude / 90) * 90) - (math.floor(right_ascension / 90) * 90)
+    right_ascension /= 15
+
+    sin_declination = 0.39782 * math.sin(math.radians(true_longitude))
+    cos_declination = math.cos(math.asin(sin_declination))
+    zenith = 90.833
+    cos_hour_angle = (
+        math.cos(math.radians(zenith)) - (sin_declination * math.sin(math.radians(latitude)))
+    ) / (cos_declination * math.cos(math.radians(latitude)))
+    if cos_hour_angle > 1 or cos_hour_angle < -1:
+        return None
+
+    if sunrise:
+        hour_angle = 360 - math.degrees(math.acos(cos_hour_angle))
+    else:
+        hour_angle = math.degrees(math.acos(cos_hour_angle))
+    hour_angle /= 15
+    local_mean_time = hour_angle + right_ascension - (0.06571 * t) - 6.622
+    return ((local_mean_time - lng_hour) % 24) * 60
+
+
+@lru_cache(maxsize=None)
+def _daylight_bounds_local_minutes(city: str, date_string: str) -> tuple[float, float] | None:
+    config = CITY_SOLAR[city]
+    date = pd.Timestamp(date_string)
+    sunrise_utc = _solar_event_utc_minutes(date, config["latitude"], config["longitude"], sunrise=True)
+    sunset_utc = _solar_event_utc_minutes(date, config["latitude"], config["longitude"], sunrise=False)
+    if sunrise_utc is None or sunset_utc is None:
+        return None
+    local_noon = pd.Timestamp(date.date()).replace(hour=12).tz_localize(config["timezone"])
+    offset_minutes = local_noon.utcoffset().total_seconds() / 60
+    return ((sunrise_utc + offset_minutes) % 1440, (sunset_utc + offset_minutes) % 1440)
+
+
+def is_daylight_hour(city: str, station_hour: pd.Timestamp) -> int:
+    """Return 1 if the midpoint of the local hour is between sunrise and sunset."""
+
+    if city not in CITY_SOLAR or pd.isna(station_hour):
+        return 0
+    timestamp = pd.Timestamp(station_hour)
+    bounds = _daylight_bounds_local_minutes(city, str(timestamp.date()))
+    if bounds is None:
+        return 0
+    sunrise, sunset = bounds
+    minute_of_day = timestamp.hour * 60 + timestamp.minute + 30
+    return int(sunrise <= minute_of_day < sunset)
+
+
+def add_daylight_columns(paired: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """Add daylight status and the paired daylight change.
+
+    ``delta_daylight`` follows the same paired-change structure as continuous
+    weather controls: daylight in t1 minus daylight in t0.
+    """
+
+    out = paired.copy()
+    for suffix in ("t0", "t1"):
+        hour_col = f"station_hour_{suffix}"
+        out_col = f"daylight_{suffix}"
+        unique_hours = out[["city", hour_col]].drop_duplicates()
+        unique_hours[out_col] = [
+            is_daylight_hour(city, hour)
+            for city, hour in zip(unique_hours["city"], unique_hours[hour_col], strict=True)
+        ]
+        out = out.merge(unique_hours, on=["city", hour_col], how="left", validate="many_to_one")
+        out[out_col] = out[out_col].astype("int8")
+    out["delta_daylight"] = (out["daylight_t1"] - out["daylight_t0"]).astype("int8")
+    return out, ["delta_daylight"]
+
+
+def analysis_window_with_pairing_keys(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """Keep one analysis window and create within-window pairing keys.
 
     The design compares each station-hour in the t0 window to the same
     station, week-within-window, day-of-week, and hour in the t1 window. For
     example: Monday 8am in week 1 of September is paired to Monday 8am in week
-    1 of November for the same station.
+    1 of November for the same station. The window length is set by the caller;
+    this helper works for three-week, four-week, and placebo windows.
     """
 
     out = df[(df["station_hour"] >= start) & (df["station_hour"] <= end)].copy()
@@ -155,7 +255,7 @@ def weather_category(code: object) -> str:
 
     The model uses indicators for these broad categories at t0 and t1. We avoid
     very granular weather-code dummies because many specific codes are sparse
-    within a three-week window.
+    within the short analysis windows used by these specifications.
     """
 
     if pd.isna(code):
@@ -189,10 +289,12 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
     The outcome used by the AIPTW estimator is y_tilde = y1 - y0. Continuous
     weather controls enter as differences between the post and pre windows.
     Weather condition controls enter as t0 and t1 category indicators.
+    Optional time and daylight controls are added only when the calling script
+    requests them through the config.
 
     City/system are intentionally retained for diagnostics but excluded from
-    feature_cols, so the nuisance models condition only on the agreed weather
-    covariates rather than on city identity.
+    feature_cols, so the nuisance models do not condition directly on city
+    identity.
     """
 
     usecols = [
@@ -221,8 +323,8 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
     meta_cols = ["station_uid", "city", "system", "week_index", "day_of_week", "hour"]
     weather_cols = list(WEATHER_CONTINUOUS.values()) + ["weather_weather_condition_code"]
 
-    t0 = first_three_week_window(panel, config.t0_start, config.t0_end)
-    t1 = first_three_week_window(panel, config.t1_start, config.t1_end)
+    t0 = analysis_window_with_pairing_keys(panel, config.t0_start, config.t0_end)
+    t1 = analysis_window_with_pairing_keys(panel, config.t1_start, config.t1_end)
     t0 = t0.loc[:, meta_cols + [config.outcome_col, "station_hour"] + weather_cols].rename(
         columns={config.outcome_col: "y0", "station_hour": "station_hour_t0"}
     )
@@ -265,6 +367,10 @@ def build_paired_dataset(config: AiptwConfig) -> tuple[pd.DataFrame, list[str]]:
         )
         paired = pd.concat([paired, time_dummies], axis=1)
         feature_cols.extend(time_dummies.columns.to_list())
+
+    if config.include_daylight_controls:
+        paired, daylight_cols = add_daylight_columns(paired)
+        feature_cols.extend(daylight_cols)
 
     paired = paired.sort_values(["city", "station_uid", "week_index", "day_of_week", "hour"]).reset_index(drop=True)
     return paired, feature_cols
@@ -431,6 +537,7 @@ def estimate_att(df: pd.DataFrame, config: AiptwConfig) -> tuple[pd.DataFrame, p
                 "estimand": config.estimand,
                 "outcome_col": config.outcome_col,
                 "include_time_controls": config.include_time_controls,
+                "include_daylight_controls": config.include_daylight_controls,
                 "treated_city": config.treated_city,
                 "control_cities": ",".join(config.control_cities) if config.control_cities else "all_except_treated",
                 "t0_start": str(config.t0_start),
@@ -553,6 +660,7 @@ def run_paired_weighting_analysis(
     random_state: int = 20250524,
     write_predictions: bool = False,
     include_time_controls: bool = False,
+    include_daylight_controls: bool = False,
 ) -> pd.DataFrame:
     """Run one nuisance fit and report both row- and station-weighted targets.
 
@@ -579,6 +687,7 @@ def run_paired_weighting_analysis(
         control_cities=control_cities,
         outcome_col=outcome_col,
         include_time_controls=include_time_controls,
+        include_daylight_controls=include_daylight_controls,
     )
     paired, feature_cols = build_paired_dataset(fit_config)
     predictions = fit_crossfit_nuisance(paired, feature_cols, fit_config)
@@ -606,6 +715,7 @@ def run_paired_weighting_analysis(
             control_cities=control_cities,
             outcome_col=outcome_col,
             include_time_controls=include_time_controls,
+            include_daylight_controls=include_daylight_controls,
         )
         result, estimated = estimate_att(predictions, config)
         diagnostics = city_diagnostics(estimated, config)

@@ -1,5 +1,5 @@
 """
-Run NYC-vs-one-control-city AIPTW ATT sensitivities.
+Run original September-November NYC-vs-one-control-city sensitivities.
 """
 
 from __future__ import annotations
@@ -14,9 +14,8 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 
 
 def main() -> None:
-    # Estimate the ATT with NYC compared to exactly one control city at a time.
-    # These are sensitivity checks for the control population, not a replacement
-    # for the pooled-control main specification.
+    # Estimate the original September-November ATT with NYC compared to exactly
+    # one control city at a time.
     results = []
     for control in CONTROLS:
         result = run_paired_weighting_analysis(
