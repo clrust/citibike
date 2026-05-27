@@ -732,3 +732,190 @@ make the analysis auditable without modifying the Human Notes section in
   ATT. That said, its magnitude (`-0.095219`) is much smaller than the e-bike
   count ATT (`-0.269000`), so it does not mechanically explain away the full
   e-bike decline.
+
+### June 20 Sharp-Window E-Bike Count Analysis
+
+- Build script: `build/june_20/01_build_june_20_panel.py`
+- Analysis script: `analysis/june_20/01_june_20_sharp_window_time_controls.py`
+- Status: complete.
+- Purpose: test the earlier Citi Bike operational e-bike speed reduction date,
+  separately from the October 24 policy implementation date.
+- Treatment date: `2025-06-20`, treated as active beginning at midnight.
+- Clean data:
+  - `data_clean/june_20/01_june_20_station_hour_panel.csv`
+  - `data_clean/june_20/01_june_20_station_hour_panel_weather.csv`
+- Weather handling:
+  - Initial June 20 weather merge had missing precipitation in control cities.
+  - The provisional analysis from that unfilled weather merge was deleted and
+    should not be interpreted.
+  - Final analysis uses 50 km alternate-station filled weather from
+    `data_raw/weather_june_20_filled_50km/`.
+  - Filled precipitation hours:
+    - Chicago: `130`
+    - Philadelphia: `186`
+    - Boston: `154`
+    - Washington DC: `218`
+    - NYC: `0`
+  - After the 50 km fill, all non-snow AIPTW weather features have zero
+    missingness in the merged analysis panel.
+  - `weather_snow_mm` is fully missing in this period and is handled by the
+    analysis code as zero, consistent with prior specifications.
+- Windows:
+  - t0: `2025-05-23 00:00:00` through `2025-06-19 23:00:00`
+  - t1: `2025-06-20 00:00:00` through `2025-07-17 23:00:00`
+- Outcome: `ebike_trip_count` at the paired station-hour level.
+- Treated city: NYC.
+- Control cities: Chicago, Boston, Philadelphia, and Washington DC.
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Result:
+  - ATT: `0.090379`
+  - Standard error: `0.002519`
+  - 95% CI: `[0.085441, 0.095316]`
+  - Rows: `3,343,872`
+  - Treated rows: `1,442,112`
+  - Control rows: `1,901,760`
+  - Treated NYC stations: `2,146`
+  - Control stations: `2,830`
+  - Row-weighted and station-weighted estimates are identical because every
+    retained station contributes exactly 672 paired rows.
+- Propensity score diagnostics:
+  - `g_hat` minimum after clipping: `0.010000`
+  - `g_hat` maximum after clipping: `0.973363`
+  - Hypothetical trimmed rows under dropping rather than clipping: `7,692`
+    (`0.2300%`)
+  - All outside-range observations are control rows; no treated rows would be
+    trimmed.
+  - `g` model AUC: `0.995357`
+  - `g` model log loss: `0.238225`
+  - `Q` model RMSE: `2.090898`
+- City mean paired e-bike changes:
+  - NYC: `0.147774`
+  - Chicago: `0.154955`
+  - Boston: `0.030972`
+  - Philadelphia: `0.008879`
+  - Washington DC: `0.013161`
+- Interpretation note: this estimate is positive rather than negative. It is a
+  different estimand from the October 24 policy-date analysis because it targets
+  Citi Bike's operational June 20 speed change, not the later public policy
+  implementation date.
+
+### June 20 Fixed-Nuisance Station Bootstrap
+
+- Script: `analysis/june_20/02_bootstrap_june_20_sharp_window.py`
+- Status: complete.
+- Purpose: compute station-cluster bootstrap confidence intervals for the June
+  20 sharp-window AIPTW estimate.
+- Bootstrap method:
+  - Fit the cross-fitted nuisance models once.
+  - Hold `g_hat`, `Q0_hat`, and `Q1_hat` fixed.
+  - Resample `station_uid` clusters with replacement.
+  - Recompute the row-weighted AIPTW ATT for each draw.
+  - XGBoost nuisance functions are not refit inside bootstrap draws.
+- Draws: `500`
+- Station clusters: `4,976`
+- Output: `results/june_20/june_20_sharp_window_bootstrap_summary.csv`
+- Result:
+  - ATT: `0.090379`
+  - Analytic standard error: `0.002519`
+  - Analytic 95% CI: `[0.085441, 0.095316]`
+  - Bootstrap standard error: `0.009467`
+  - Bootstrap percentile 95% CI: `[0.072855, 0.108151]`
+- Weighting note: only the row-weighted bootstrap is reported because the
+  retained June 20 station panel is balanced. Every retained station contributes
+  exactly 672 paired station-hours, so station-weighted and row-weighted ATTs
+  are identical by construction for this specification.
+
+### Sharp-Window Main Spec Fixed-Nuisance Station Bootstrap
+
+- Script: `analysis/23_bootstrap_sharp_window.py`
+- Status: complete.
+- Purpose: compute station-cluster bootstrap confidence intervals for the
+  preferred October 24 sharp-window AIPTW estimate.
+- Windows:
+  - t0: `2025-09-26 00:00:00` through `2025-10-23 23:00:00`
+  - t1: `2025-10-24 00:00:00` through `2025-11-20 23:00:00`
+- Outcome: `ebike_trip_count` at the paired station-hour level.
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Bootstrap method:
+  - Fit the cross-fitted nuisance models once.
+  - Hold `g_hat`, `Q0_hat`, and `Q1_hat` fixed.
+  - Resample `station_uid` clusters with replacement.
+  - Recompute the row-weighted AIPTW ATT for each draw.
+  - XGBoost nuisance functions are not refit inside bootstrap draws.
+- Draws: `500`
+- Station clusters: `5,107`
+- Output: `results/main_spec/sharp_window_bootstrap_summary.csv`
+- Result:
+  - ATT: `-0.269000`
+  - Analytic standard error: `0.002496`
+  - Analytic 95% CI: `[-0.273892, -0.264108]`
+  - Bootstrap standard error: `0.013013`
+  - Bootstrap percentile 95% CI: `[-0.291827, -0.242106]`
+  - Hypothetical trimmed rows under dropping rather than clipping: `76,994`
+    (`2.2435%`)
+- Weighting note: only the row-weighted bootstrap is reported because the
+  retained sharp-window station panel is balanced. Every retained station
+  contributes exactly 672 paired station-hours, so station-weighted and
+  row-weighted ATTs are identical by construction for this specification.
+
+### Rolling Assumed-Treatment-Date ATT Plot
+
+- Build script: `build/rolling_att/01_build_rolling_panel.py`
+- Analysis script: `analysis/rolling_att/01_run_rolling_att.py`
+- Plot script: `analysis/rolling_att/02_plot_rolling_att.py`
+- Status: complete.
+- Purpose: create an event-study-like diagnostic by re-estimating the same
+  four-week sharp-window AIPTW design under different assumed treatment dates.
+- Clean data:
+  - `data_clean/rolling_att/01_rolling_station_hour_panel.csv`
+  - `data_clean/rolling_att/01_rolling_station_hour_panel_weather.csv`
+- Broad panel range: `2025-08-15 00:00:00` through
+  `2025-11-27 23:00:00`.
+- Weather source: `data_raw/weather_filled_50km/`.
+- Weather missingness check:
+  - All non-snow AIPTW weather features have zero missingness in the broad
+    rolling panel.
+  - `weather_snow_mm` is handled as zero by the analysis code, as in the other
+    station-hour specifications.
+- Date-specific retention:
+  - The first rolling run used the broad panel without applying the agreed
+    exact-window station-retention rule. Those provisional outputs were moved
+    to `results/rolling_att/obsolete_no_window_retention/` and should not be
+    interpreted.
+  - The final rolling estimates retain stations separately for each assumed
+    treatment date only if the station has at least one observed trip in both
+    that date's exact four-week pre window and exact four-week post window.
+- Outcome: `ebike_trip_count` at the paired station-hour level.
+- Treated city: NYC.
+- Control cities: Chicago, Boston, Philadelphia, and Washington DC.
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Outputs:
+  - `results/rolling_att/rolling_att_summary.csv`
+  - `results/rolling_att/rolling_att_plot.png`
+  - `results/rolling_att/rolling_att_plot.pdf`
+- Results:
+
+| Assumed date | ATT | SE | 95% CI | Treated stations | Control stations | Hypothetical trim share |
+|---|---:|---:|---:|---:|---:|---:|
+| 2025-09-12 | `0.167738` | `0.002620` | `[0.162603, 0.172874]` | `2,125` | `2,970` | `0.4298%` |
+| 2025-09-19 | `-0.057345` | `0.002666` | `[-0.062570, -0.052120]` | `2,122` | `2,968` | `0.2331%` |
+| 2025-09-26 | `-0.141515` | `0.002653` | `[-0.146715, -0.136315]` | `2,125` | `2,972` | `0.2061%` |
+| 2025-10-03 | `-0.302691` | `0.002613` | `[-0.307813, -0.297569]` | `2,136` | `2,982` | `0.2019%` |
+| 2025-10-10 | `-0.357263` | `0.002649` | `[-0.362455, -0.352070]` | `2,139` | `2,971` | `1.3277%` |
+| 2025-10-17 | `-0.203357` | `0.002530` | `[-0.208316, -0.198399]` | `2,143` | `2,961` | `3.0318%` |
+| 2025-10-24 | `-0.269000` | `0.002496` | `[-0.273892, -0.264108]` | `2,145` | `2,962` | `2.2435%` |
+| 2025-10-31 | `-0.273980` | `0.002438` | `[-0.278758, -0.269201]` | `2,144` | `2,948` | `2.4690%` |
+
+- Interpretation note: the October 24 point matches the preferred sharp-window
+  main estimate. The rolling curve is not a formal regression event study; it
+  is a placebo/sensitivity curve over assumed treatment dates. Negative
+  estimates appear before October 24, especially around October 3 and October
+  10, so the plot should be read as evidence that the sharp-window estimate is
+  sensitive to broader timing/seasonality patterns, not as isolated visual
+  confirmation of the October 24 policy date.
