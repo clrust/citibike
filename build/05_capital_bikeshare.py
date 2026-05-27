@@ -11,7 +11,7 @@ def main() -> None:
     build_city_panel(
         description=__doc__ or "",
         raw_subdir="capitalbike",
-        out_name="05_capital_bikeshare.csv",
+        out_name="og_main_spec_sept_nov/05_capital_bikeshare.csv",
         file_tokens=("capitalbikeshare", "capitalbike"),
         column_map={
             "started_at": "started_at",

@@ -32,8 +32,8 @@ EVENT_DATE = "2024-10-24"
 PLACEBO_PRE = (pd.Timestamp("2024-09-26"), pd.Timestamp("2024-10-23 23:00:00"))
 PLACEBO_POST = (pd.Timestamp("2024-10-24"), pd.Timestamp("2024-11-20 23:00:00"))
 ANALYSIS_WINDOWS = [PLACEBO_PRE, PLACEBO_POST]
-PANEL_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_2024_placebo_station_hour_panel.csv"
-WEATHER_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_2024_placebo_station_hour_panel_weather.csv"
+PANEL_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "12_sharp_2024_placebo_station_hour_panel.csv"
+WEATHER_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "12_sharp_2024_placebo_station_hour_panel_weather.csv"
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,10 +1,11 @@
 """
 Run the adjacent-window e-bike trips sensitivity with time-slot controls.
 
-The comparison is the first three full weeks before the October 24, 2025 speed
-cap versus the first three full weeks after it, excluding the treatment week.
-As in the time-control specification, X includes weather controls plus
-categorical hour, day_of_week, and week_index indicators.
+Window: September 29-October 19, 2025 versus October 27-November 16, 2025,
+skipping the treatment week. Outcome: ebike_trip_count at the paired
+station-hour level. X covariates: paired differences in continuous weather
+variables, pre/post coarse weather-condition indicators, and categorical hour,
+day_of_week, and week_index indicators.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ def main() -> None:
         input_path=PROJECT_ROOT
         / "data_clean"
         / "sensitivities"
-        / "adjacent_window_station_hour_panel_weather_filled50.csv",
+        / "10_adjacent_window_station_hour_panel_weather_filled50.csv",
         results_dir=RESULTS_DIR,
         output_stem="adjacent_window_time_controls",
         t0_start="2025-09-29",

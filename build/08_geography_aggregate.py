@@ -23,8 +23,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--panel", type=Path, default=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv")
-    parser.add_argument("--out", type=Path, default=PROJECT_ROOT / "data_clean" / "08_geography_hour_panel.csv")
+    parser.add_argument(
+        "--panel",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "07_station_hour_panel_weather.csv",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "08_geography_hour_panel.csv",
+    )
     parser.add_argument("--crosswalk", type=Path)
     parser.add_argument("--geography-column", default="geography")
     parser.add_argument("--grid-decimals", type=int, default=2)

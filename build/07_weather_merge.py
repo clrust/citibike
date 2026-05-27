@@ -30,10 +30,18 @@ WEATHER_TOKENS = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--panel", type=Path, default=PROJECT_ROOT / "data_clean" / "06_station_hour_panel.csv")
+    parser.add_argument(
+        "--panel",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "06_station_hour_panel.csv",
+    )
     parser.add_argument("--weather-dir", type=Path, default=PROJECT_ROOT / "data_raw" / "weather")
     parser.add_argument("--fallback-weather-dir", type=Path, default=PROJECT_ROOT / "data_raw")
-    parser.add_argument("--out", type=Path, default=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv")
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "07_station_hour_panel_weather.csv",
+    )
     parser.add_argument("--event-date", default=DEFAULT_EVENT_DATE)
     return parser.parse_args()
 

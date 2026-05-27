@@ -13,18 +13,22 @@ from panel_utils import write_csv_atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUTS = (
-    PROJECT_ROOT / "data_clean" / "01_citibike.csv",
-    PROJECT_ROOT / "data_clean" / "02_divvy.csv",
-    PROJECT_ROOT / "data_clean" / "03_indego.csv",
-    PROJECT_ROOT / "data_clean" / "04_bluebikes.csv",
-    PROJECT_ROOT / "data_clean" / "05_capital_bikeshare.csv",
+    PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "01_citibike.csv",
+    PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "02_divvy.csv",
+    PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "03_indego.csv",
+    PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "04_bluebikes.csv",
+    PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "05_capital_bikeshare.csv",
 )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", nargs="+", type=Path, default=list(DEFAULT_INPUTS))
-    parser.add_argument("--out", type=Path, default=PROJECT_ROOT / "data_clean" / "06_station_hour_panel.csv")
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "06_station_hour_panel.csv",
+    )
     return parser.parse_args()
 
 

@@ -1,5 +1,9 @@
 """
 Combine sensitivity result CSVs into one summary table.
+
+This script does not estimate a model and therefore has no analysis window,
+outcome, or X covariate set of its own. It stacks the summary outputs produced
+by the individual analysis scripts, each of which documents those choices.
 """
 
 from __future__ import annotations

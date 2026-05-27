@@ -1,9 +1,11 @@
 """
-Run the sharp immediate-post e-bike trips sensitivity with time controls.
+Run the sharp-window station-hour e-bike main specification.
 
-The post window begins at midnight on October 24, 2025, treating the policy date
-as immediately active. The analysis uses four-week pre/post windows. X includes
-weather controls plus categorical hour, day_of_week, and week_index indicators.
+Window: September 26-October 23, 2025 versus October 24-November 20, 2025,
+treating the policy as active at midnight on October 24. Outcome:
+ebike_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables, pre/post coarse weather-condition
+indicators, and categorical hour, day_of_week, and week_index indicators.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
 def main() -> None:
     result = run_paired_weighting_analysis(
         base_estimand="NYC sharp-window ATT with weather and time-slot controls",
-        input_path=PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_window_station_hour_panel_weather.csv",
+        input_path=PROJECT_ROOT / "data_clean" / "main_spec" / "11_sharp_window_station_hour_panel_weather.csv",
         results_dir=RESULTS_DIR,
         output_stem="sharp_window_time_controls",
         t0_start="2025-09-26",

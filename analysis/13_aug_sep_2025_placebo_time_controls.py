@@ -1,5 +1,10 @@
 """
 Run the August-September 2025 placebo with time-slot controls in X.
+
+Window: August 4-24, 2025 versus September 1-21, 2025. Outcome:
+ebike_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables, pre/post coarse weather-condition
+indicators, and categorical hour, day_of_week, and week_index indicators.
 """
 
 from __future__ import annotations
@@ -18,7 +23,8 @@ def main() -> None:
         input_path=PROJECT_ROOT
         / "data_clean"
         / "sensitivities"
-        / "2025_aug_sep_station_hour_panel_weather_filled50.csv",
+        / "og_placebo_2025_aug_sep"
+        / "09_2025_aug_sep_station_hour_panel_weather_filled50.csv",
         results_dir=RESULTS_DIR,
         output_stem="placebo_2025_aug_sep_time_controls",
         t0_start="2025-08-04",

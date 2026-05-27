@@ -1,10 +1,12 @@
 """
 Run the 2024 sharp-window placebo with time controls.
 
-This repeats the preferred four-week October-policy design one year earlier:
-September 26-October 23, 2024 versus October 24-November 20, 2024. There was no
-NYC October 24, 2024 e-bike speed-cap policy event, so this is a same-calendar
-placebo check.
+Window: September 26-October 23, 2024 versus October 24-November 20, 2024.
+Outcome: ebike_trip_count at the paired station-hour level. X covariates:
+paired differences in continuous weather variables, pre/post coarse
+weather-condition indicators, and categorical hour, day_of_week, and week_index
+indicators. There was no NYC October 24, 2024 speed-cap event, so this is a
+same-calendar placebo check.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ def main() -> None:
         input_path=PROJECT_ROOT
         / "data_clean"
         / "sensitivities"
-        / "sharp_2024_placebo_station_hour_panel_weather.csv",
+        / "12_sharp_2024_placebo_station_hour_panel_weather.csv",
         results_dir=RESULTS_DIR,
         output_stem="sharp_2024_placebo_time_controls",
         t0_start="2024-09-26",

@@ -1,9 +1,11 @@
 """
 Run the original September-November AIPTW spec with delta daylight in X.
 
-This is retained as a sensitivity now that the sharp October window is the
-preferred main specification. It adds the paired change in daylight status
-between t0 and t1.
+Window: September 1-21, 2025 versus November 3-23, 2025. Outcome:
+ebike_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables, pre/post coarse weather-condition
+indicators, and delta_daylight, the paired change in daylight status between
+t0 and t1.
 """
 
 from __future__ import annotations
@@ -14,12 +16,18 @@ from aiptw_common import PROJECT_ROOT, run_paired_weighting_analysis
 
 
 RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
+INPUT_PATH = (
+    PROJECT_ROOT
+    / "data_clean"
+    / "og_main_spec_sept_nov"
+    / "07_station_hour_panel_weather.csv"
+)
 
 
 def main() -> None:
     result = run_paired_weighting_analysis(
         base_estimand="NYC ATT with weather and daylight controls",
-        input_path=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv",
+        input_path=INPUT_PATH,
         results_dir=RESULTS_DIR,
         output_stem="main_daylight_controls",
         t0_start="2025-09-01",

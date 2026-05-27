@@ -1,9 +1,12 @@
 """
 Bootstrap the August-September 2025 placebo ATT.
 
-This reruns the placebo nuisance models once, then resamples station_uid
-clusters using the fixed cross-fitted nuisance predictions. It does not refit
-XGBoost inside each bootstrap draw.
+Window: August 4-24, 2025 versus September 1-21, 2025. Outcome:
+ebike_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables plus pre/post coarse
+weather-condition indicators. This reruns the nuisance models once, then
+resamples station_uid clusters using fixed cross-fitted nuisance predictions;
+it does not refit XGBoost inside each bootstrap draw.
 """
 
 from __future__ import annotations
@@ -79,7 +82,8 @@ def main() -> None:
         input_path=PROJECT_ROOT
         / "data_clean"
         / "sensitivities"
-        / "2025_aug_sep_station_hour_panel_weather_filled50.csv",
+        / "og_placebo_2025_aug_sep"
+        / "09_2025_aug_sep_station_hour_panel_weather_filled50.csv",
         results_dir=RESULTS_DIR,
         output_stem="placebo_2025_aug_sep_bootstrap",
         random_state=args.random_state,

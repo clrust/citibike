@@ -8,3 +8,5 @@ zero <- citi %>%
 
 ggplot(data = citi) +
   geom_histogram(aes(x = trip_count))
+
+

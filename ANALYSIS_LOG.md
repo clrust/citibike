@@ -29,7 +29,8 @@ make the analysis auditable without modifying the Human Notes section in
 
 ## Original September-November Specification After Exact-Window Filtering
 
-- Original cleaned weather panel: `data_clean/07_station_hour_panel_weather.csv`
+- Original cleaned weather panel:
+  `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
 - Original paired sample:
   - Rows: `2,501,352`
   - Stations: `4,963`
@@ -73,8 +74,8 @@ make the analysis auditable without modifying the Human Notes section in
 - Script: `build/00_fill_meteostat_weather_gaps.py`
 - Filled weather directory: `data_raw/weather_filled_20km/`
 - Merged sensitivity outputs:
-  - `data_clean/sensitivities/2024_sep_nov_station_hour_panel_weather_filled20.csv`
-  - `data_clean/sensitivities/2025_aug_sep_station_hour_panel_weather_filled20.csv`
+  - `data_clean/sensitivities/og_placebo_2024_sep_nov/09_2024_sep_nov_station_hour_panel_weather_filled20.csv`
+  - `data_clean/sensitivities/og_placebo_2025_aug_sep/09_2025_aug_sep_station_hour_panel_weather_filled20.csv`
 - Result in paired analysis features:
   - `2025_aug_sep`: missing `delta_precip_mm` fell from `62,077` rows to
     `5,901` rows.
@@ -96,8 +97,8 @@ make the analysis auditable without modifying the Human Notes section in
   - Six weather-condition-code hours remain missing in NYC, Chicago,
     Philadelphia, and Washington DC.
 - The 50 km filled sensitivity weather panels are being generated as:
-  - `data_clean/sensitivities/2024_sep_nov_station_hour_panel_weather_filled50.csv`
-  - `data_clean/sensitivities/2025_aug_sep_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2024_sep_nov/09_2024_sep_nov_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2025_aug_sep/09_2025_aug_sep_station_hour_panel_weather_filled50.csv`
 - Paired analysis result:
   - `2025_aug_sep`: no missing AIPTW feature values.
   - `2024_sep_nov`: no missing AIPTW feature values.
@@ -126,7 +127,8 @@ make the analysis auditable without modifying the Human Notes section in
 - Purpose: estimate the NYC ATT separately using each control city as the only
   control group.
 - Inputs:
-  - Main weather panel: `data_clean/07_station_hour_panel_weather.csv`
+  - Main weather panel:
+    `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
   - Outcome: `ebike_trip_count`
   - Windows:
     - t0: `2025-09-01 00:00:00` through `2025-09-21 23:00:00`
@@ -160,7 +162,8 @@ make the analysis auditable without modifying the Human Notes section in
 - Purpose: re-estimate the NYC ATT after excluding each control city one at a
   time from the pooled control group.
 - Input:
-  - Main weather panel: `data_clean/07_station_hour_panel_weather.csv`
+  - Main weather panel:
+    `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
   - Outcome: `ebike_trip_count`
   - Windows:
     - t0: `2025-09-01 00:00:00` through `2025-09-21 23:00:00`
@@ -188,7 +191,7 @@ make the analysis auditable without modifying the Human Notes section in
 - Purpose: pre-treatment placebo comparing NYC to controls before the October
   2025 e-bike speed-cap treatment.
 - Input:
-  - `data_clean/sensitivities/2025_aug_sep_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2025_aug_sep/09_2025_aug_sep_station_hour_panel_weather_filled50.csv`
   - The 50 km filled weather panel is used because it has no missing AIPTW
     feature values for this placebo.
 - Outcome: `ebike_trip_count`
@@ -229,7 +232,7 @@ make the analysis auditable without modifying the Human Notes section in
   - Do not refit XGBoost inside each bootstrap draw.
   - Default draws: `500`.
 - Input:
-  - `data_clean/sensitivities/2025_aug_sep_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2025_aug_sep/09_2025_aug_sep_station_hour_panel_weather_filled50.csv`
 - Output summary:
   - `results/sensitivities/aug_sep_2025_placebo_bootstrap_summary.csv`
 - Result:
@@ -251,7 +254,7 @@ make the analysis auditable without modifying the Human Notes section in
 - Purpose: prior-year placebo comparing the same fall seasonal windows one year
   before the October 2025 e-bike speed-cap treatment.
 - Input:
-  - `data_clean/sensitivities/2024_sep_nov_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2024_sep_nov/09_2024_sep_nov_station_hour_panel_weather_filled50.csv`
   - The 50 km filled weather panel is used because it has no missing AIPTW
     feature values for this placebo.
 - Outcome: `ebike_trip_count`
@@ -290,7 +293,7 @@ make the analysis auditable without modifying the Human Notes section in
   untreated paired changes may still differ by hour, day of week, or week index
   across cities.
 - Input:
-  - `data_clean/07_station_hour_panel_weather.csv`
+  - `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
 - Outcome: `ebike_trip_count`
 - Windows:
   - t0: `2025-09-01 00:00:00` through `2025-09-21 23:00:00`
@@ -327,8 +330,8 @@ make the analysis auditable without modifying the Human Notes section in
 - Purpose: check whether adding categorical `hour`, `day_of_week`, and
   `week_index` indicators to `X` attenuates the placebo failures.
 - Inputs:
-  - `data_clean/sensitivities/2025_aug_sep_station_hour_panel_weather_filled50.csv`
-  - `data_clean/sensitivities/2024_sep_nov_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2025_aug_sep/09_2025_aug_sep_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/og_placebo_2024_sep_nov/09_2024_sep_nov_station_hour_panel_weather_filled50.csv`
 - Data gap note: fleet size and fleet composition remain important candidate
   controls. We do not currently have comparable city-hour measures of active
   bikes, e-bike availability, or e-bike share across systems. The project owner
@@ -362,7 +365,7 @@ make the analysis auditable without modifying the Human Notes section in
     consistent with substitution or e-bike-specific effects.
   - If classic rides also fall, that suggests broader Citi Bike demand changes.
 - Input:
-  - `data_clean/07_station_hour_panel_weather.csv`
+  - `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
 - Windows:
   - t0: `2025-09-01 00:00:00` through `2025-09-21 23:00:00`
   - t1: `2025-11-03 00:00:00` through `2025-11-23 23:00:00`
@@ -402,7 +405,7 @@ make the analysis auditable without modifying the Human Notes section in
   - `delta_daylight = daylight_t1 - daylight_t0`.
   - Only `delta_daylight` is included as a nuisance-model covariate.
 - Input:
-  - `data_clean/07_station_hour_panel_weather.csv`
+  - `data_clean/og_main_spec_sept_nov/07_station_hour_panel_weather.csv`
 - Outcome: `ebike_trip_count`
 - Windows:
   - t0: `2025-09-01 00:00:00` through `2025-09-21 23:00:00`
@@ -446,15 +449,15 @@ make the analysis auditable without modifying the Human Notes section in
   condition indicators, and categorical `hour`, `day_of_week`, and
   `week_index` indicators. Daylight controls are not included in this version.
 - Planned outputs:
-  - `data_clean/sensitivities/adjacent_window_station_hour_panel.csv`
-  - `data_clean/sensitivities/adjacent_window_station_hour_panel_weather.csv`
-  - `data_clean/sensitivities/adjacent_window_station_hour_panel_weather_filled50.csv`
+  - `data_clean/sensitivities/10_adjacent_window_station_hour_panel.csv`
+  - `data_clean/sensitivities/10_adjacent_window_station_hour_panel_weather.csv`
+  - `data_clean/sensitivities/10_adjacent_window_station_hour_panel_weather_filled50.csv`
   - `results/sensitivities/adjacent_window_time_controls_summary.csv`
 - Weather note:
   - The base weather merge had missing precipitation for 52 city-hours around
     October 10-11, affecting `delta_precip_mm` for 39,330 paired rows.
   - The 50 km filled-weather files were refreshed and the analysis was run on
-    `adjacent_window_station_hour_panel_weather_filled50.csv`.
+    `10_adjacent_window_station_hour_panel_weather_filled50.csv`.
   - The final paired analysis feature matrix had no missing covariates.
 - Build result:
   - Station-hour rows: `5,084,352`
@@ -593,7 +596,7 @@ make the analysis auditable without modifying the Human Notes section in
 - Covariates in `X`: continuous weather differences, pre/post broad weather
   condition indicators, and categorical `hour`, `day_of_week`, and
   `week_index` indicators.
-- Input: `data_clean/sensitivities/sharp_window_station_hour_panel_weather.csv`.
+- Input: `data_clean/main_spec/11_sharp_window_station_hour_panel_weather.csv`.
 - One-control-city results:
 
 | Control city | ATT | SE | 95% CI | NYC stations | Control stations | Hypothetical trim share |
@@ -619,3 +622,113 @@ make the analysis auditable without modifying the Human Notes section in
 - Leave-one-out interpretation note: the estimate is stable to omitting any
   one control city. The range is `-0.277591` to `-0.258436`, bracketing the
   preferred pooled-control estimate (`-0.269000`).
+
+### Sharp-Window City-Hour E-Bike Share Outcome
+
+- Script: `analysis/21_sharp_ebike_share_city_hour_aiptw.py`
+- Build input: `data_clean/sensitivities/13_sharp_ebike_share_city_hour.csv`,
+  produced by `build/13_build_sharp_ebike_share_city_hour.py`.
+- Status: complete.
+- Purpose: repeat the preferred four-week October 2025 design with an outcome
+  that measures the share of all system rides taken on e-bikes.
+- Outcome: `ebike_trip_count / (ebike_trip_count + classic_trip_count)`.
+- Unit: paired city-hour.
+  - NYC contributes one treated row for each paired hour.
+  - Chicago, Boston, Philadelphia, and Washington DC each contribute one
+    control row for each paired hour.
+- Windows:
+  - t0: `2025-09-26 00:00:00` through `2025-10-23 23:00:00`
+  - t1: `2025-10-24 00:00:00` through `2025-11-20 23:00:00`
+- Estimator: AIPTW ATT for NYC city-hours.
+- Nuisance models: conservative XGBoost classifier for `g(X)` and XGBoost
+  squared-error regressor for `Q(A, X)`.
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Geography note: neighborhood-hour ratios are feasible in principle, but not
+  run here. They would require comparable neighborhood definitions across all
+  cities and would reintroduce small-denominator ratio noise.
+- Cross-fitting note:
+  - The final script uses paired time-slot folds: each fold holds out all cities
+    for a subset of matched `week_index`/`day_of_week`/`hour` slots.
+  - City-level folds are not appropriate for this sensitivity because there is
+    only one treated city.
+- Result:
+  - ATT: `-0.001650`
+  - Standard error: `0.002010`
+  - 95% CI: `[-0.005590, 0.002290]`
+  - Rows: `3,360`
+  - Treated rows: `672`
+  - Control rows: `2,688`
+  - Treated cities: `1`
+  - Control cities: `4`
+- Propensity score diagnostics:
+  - No propensity scores were outside the `[0.01, 0.99]` clipping range.
+  - Hypothetical trimmed rows if dropping outside-range observations: `0`
+    (`0.0000%`).
+  - Raw propensity minimum: `0.034028`
+  - Raw propensity maximum: `0.357084`
+  - NYC raw propensity median: `0.243327`
+  - Control raw propensity median: `0.199254`
+  - `g` model AUC: `0.673202`
+  - `g` model log loss: `0.471804`
+- City mean e-bike share changes:
+  - NYC: `0.020101`
+  - Chicago: `0.003438`
+  - Boston: `0.021843`
+  - Philadelphia: `0.030332`
+  - Washington DC: `0.028009`
+- Interpretation note: the near-zero city-hour e-bike-share ATT creates tension
+  with a clean story that the speed cap reduced e-bike demand relative to
+  classic bikes. A composition outcome should be more robust to broad shifts in
+  total bike-share demand if classic and e-bike rides move together. However,
+  this specification is much more aggregated than the station-hour main design
+  and does not condition on station or neighborhood, so it is not a decisive
+  falsification of the station-hour count result.
+
+### Sharp-Window Classic-Rides Diagnostic Outcome
+
+- Script: `analysis/22_sharp_classic_rides_robustness.py`
+- Status: complete.
+- Purpose: repeat the preferred four-week October 2025 station-hour AIPTW
+  specification, changing only the outcome from `ebike_trip_count` to
+  `classic_trip_count`.
+- Interpretation:
+  - This is a robustness/diagnostic outcome for the station-hour count design,
+    not a clean unaffected placebo.
+  - If the speed cap specifically reduced e-bike demand, classic-bike rides
+    would ideally be roughly unchanged or higher.
+  - A negative classic-bike ATT therefore weakens a simple treatment-specific
+    e-bike-demand interpretation, while the smaller magnitude matters for
+    assessing how much broader demand movement could explain.
+- Windows:
+  - t0: `2025-09-26 00:00:00` through `2025-10-23 23:00:00`
+  - t1: `2025-10-24 00:00:00` through `2025-11-20 23:00:00`
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Result:
+  - ATT: `-0.095219`
+  - Standard error: `0.001644`
+  - 95% CI: `[-0.098440, -0.091998]`
+  - Rows: `3,431,904`
+  - Treated NYC stations: `2,145`
+  - Control stations: `2,962`
+  - Hypothetical trimmed rows under dropping rather than clipping: `76,994`
+    (`2.2435%`)
+  - Row-weighted and station-weighted estimates are identical because every
+    retained station contributes exactly 672 paired rows.
+- City mean paired classic-ride changes:
+  - NYC: `-0.220134`
+  - Chicago: `-0.090145`
+  - Boston: `-0.243137`
+  - Philadelphia: `-0.071543`
+  - Washington DC: `-0.077931`
+- Interpretation note: this is best read as a robustness/diagnostic outcome for
+  the station-hour count specification, not primarily as a substitution test.
+  In a clean treatment-specific e-bike-demand story, classic-bike ATT would
+  ideally be around zero or positive. The observed classic-bike ATT is also
+  negative, which weakens a simple causal interpretation of the e-bike count
+  ATT. That said, its magnitude (`-0.095219`) is much smaller than the e-bike
+  count ATT (`-0.269000`), so it does not mechanically explain away the full
+  e-bike decline.

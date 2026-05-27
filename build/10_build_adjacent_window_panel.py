@@ -35,8 +35,8 @@ EVENT_DATE = "2025-10-24"
 ADJACENT_PRE = (pd.Timestamp("2025-09-29"), pd.Timestamp("2025-10-19 23:00:00"))
 ADJACENT_POST = (pd.Timestamp("2025-10-27"), pd.Timestamp("2025-11-16 23:00:00"))
 ANALYSIS_WINDOWS = [ADJACENT_PRE, ADJACENT_POST]
-PANEL_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "adjacent_window_station_hour_panel.csv"
-WEATHER_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "adjacent_window_station_hour_panel_weather.csv"
+PANEL_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "10_adjacent_window_station_hour_panel.csv"
+WEATHER_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "10_adjacent_window_station_hour_panel_weather.csv"
 
 
 def parse_args() -> argparse.Namespace:

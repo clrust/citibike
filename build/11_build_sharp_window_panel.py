@@ -33,8 +33,8 @@ EVENT_DATE = "2025-10-24"
 SHARP_PRE = (pd.Timestamp("2025-09-26"), pd.Timestamp("2025-10-23 23:00:00"))
 SHARP_POST = (pd.Timestamp("2025-10-24"), pd.Timestamp("2025-11-20 23:00:00"))
 ANALYSIS_WINDOWS = [SHARP_PRE, SHARP_POST]
-PANEL_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_window_station_hour_panel.csv"
-WEATHER_OUT = PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_window_station_hour_panel_weather.csv"
+PANEL_OUT = PROJECT_ROOT / "data_clean" / "main_spec" / "11_sharp_window_station_hour_panel.csv"
+WEATHER_OUT = PROJECT_ROOT / "data_clean" / "main_spec" / "11_sharp_window_station_hour_panel_weather.csv"
 
 
 def parse_args() -> argparse.Namespace:

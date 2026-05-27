@@ -111,13 +111,29 @@ CITY_CONFIGS = (
 SCENARIOS = {
     "2025_aug_sep": {
         "months": ["2025-08", "2025-09"],
-        "panel_out": PROJECT_ROOT / "data_clean" / "sensitivities" / "2025_aug_sep_station_hour_panel.csv",
-        "weather_out": PROJECT_ROOT / "data_clean" / "sensitivities" / "2025_aug_sep_station_hour_panel_weather.csv",
+        "panel_out": PROJECT_ROOT
+        / "data_clean"
+        / "sensitivities"
+        / "og_placebo_2025_aug_sep"
+        / "09_2025_aug_sep_station_hour_panel.csv",
+        "weather_out": PROJECT_ROOT
+        / "data_clean"
+        / "sensitivities"
+        / "og_placebo_2025_aug_sep"
+        / "09_2025_aug_sep_station_hour_panel_weather.csv",
     },
     "2024_sep_nov": {
         "months": ["2024-09", "2024-11"],
-        "panel_out": PROJECT_ROOT / "data_clean" / "sensitivities" / "2024_sep_nov_station_hour_panel.csv",
-        "weather_out": PROJECT_ROOT / "data_clean" / "sensitivities" / "2024_sep_nov_station_hour_panel_weather.csv",
+        "panel_out": PROJECT_ROOT
+        / "data_clean"
+        / "sensitivities"
+        / "og_placebo_2024_sep_nov"
+        / "09_2024_sep_nov_station_hour_panel.csv",
+        "weather_out": PROJECT_ROOT
+        / "data_clean"
+        / "sensitivities"
+        / "og_placebo_2024_sep_nov"
+        / "09_2024_sep_nov_station_hour_panel_weather.csv",
     },
 }
 

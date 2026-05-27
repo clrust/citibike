@@ -1,9 +1,12 @@
 """
 Compute station-level bootstrap CIs for the original September-November spec.
 
-This uses saved cross-fitted nuisance predictions from the original
-September-November e-bike specification and resamples station_uid clusters. It
-does not refit XGBoost in each bootstrap replicate.
+Window and outcome come from the saved prediction file, by default the original
+September 1-21, 2025 versus November 3-23, 2025 station-hour e-bike analysis.
+X covariates are also inherited from that prediction file, by default paired
+weather differences plus pre/post weather-condition indicators. This resamples
+station_uid clusters using fixed cross-fitted nuisance predictions and does not
+refit XGBoost in each bootstrap replicate.
 """
 
 from __future__ import annotations

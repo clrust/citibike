@@ -1,5 +1,10 @@
 """
-Run the original September-November paired design with classic rides as outcome.
+Run the original September-November design with classic rides as the outcome.
+
+Window: September 1-21, 2025 versus November 3-23, 2025. Outcome:
+classic_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables plus pre/post coarse
+weather-condition indicators. No time-slot controls are included.
 """
 
 from __future__ import annotations
@@ -10,15 +15,20 @@ from aiptw_common import PROJECT_ROOT, run_paired_weighting_analysis
 
 
 RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
+INPUT_PATH = (
+    PROJECT_ROOT
+    / "data_clean"
+    / "og_main_spec_sept_nov"
+    / "07_station_hour_panel_weather.csv"
+)
 
 
 def main() -> None:
-    # Same date window as the original September-November specification, but
-    # replace e-bike ride counts with classic ride counts. This checks whether
-    # the estimated change is specific to the mode affected by the speed cap.
+    # Keep the original Sept-Nov window and weather-only X fixed, changing only
+    # the outcome from e-bike rides to classic rides.
     result = run_paired_weighting_analysis(
         base_estimand="NYC ATT for classic rides",
-        input_path=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv",
+        input_path=INPUT_PATH,
         results_dir=RESULTS_DIR,
         output_stem="classic_rides_main_window",
         t0_start="2025-09-01",

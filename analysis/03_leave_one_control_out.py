@@ -1,5 +1,11 @@
 """
 Run original September-November leave-one-control-city-out sensitivities.
+
+Window: September 1-21, 2025 versus November 3-23, 2025. Outcome:
+ebike_trip_count at the paired station-hour level. X covariates: paired
+differences in continuous weather variables plus pre/post coarse
+weather-condition indicators. Each run omits one control city from Chicago,
+Boston, Philadelphia, and Washington DC.
 """
 
 from __future__ import annotations
@@ -13,18 +19,23 @@ from aiptw_common import PROJECT_ROOT, run_paired_weighting_analysis
 
 CONTROLS = ("chicago", "boston", "philadelphia", "washington_dc")
 RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
+INPUT_PATH = (
+    PROJECT_ROOT
+    / "data_clean"
+    / "og_main_spec_sept_nov"
+    / "07_station_hour_panel_weather.csv"
+)
 
 
 def main() -> None:
-    # Re-estimate the original September-November ATT four times, each time
-    # dropping one control city, while keeping the same dates, outcome,
-    # covariates, and estimator.
+    # Keep the original Sept-Nov window, e-bike outcome, and weather-only X
+    # fixed while changing only the pooled control-city set.
     results = []
     for omitted in CONTROLS:
         controls = tuple(city for city in CONTROLS if city != omitted)
         result = run_paired_weighting_analysis(
             base_estimand=f"NYC ATT excluding {omitted}",
-            input_path=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv",
+            input_path=INPUT_PATH,
             results_dir=RESULTS_DIR,
             output_stem=f"leave_one_out_excluding_{omitted}",
             t0_start="2025-09-01",

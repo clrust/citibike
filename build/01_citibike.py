@@ -11,7 +11,7 @@ def main() -> None:
     build_city_panel(
         description=__doc__ or "",
         raw_subdir="citi_bike",
-        out_name="01_citibike.csv",
+        out_name="og_main_spec_sept_nov/01_citibike.csv",
         file_tokens=("citibike",),
         exclude_prefixes=("jc-",),
         column_map={

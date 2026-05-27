@@ -1,10 +1,11 @@
 """
 Run sharp-window leave-one-control-city-out AIPTW ATT sensitivities.
 
-These repeat the preferred four-week October 2025 specification, changing only
-the pooled control group by omitting one city at a time. The date windows,
-outcome, weather controls, and time-slot controls are otherwise identical to
-the preferred sharp specification.
+Window: September 26-October 23, 2025 versus October 24-November 20, 2025.
+Outcome: ebike_trip_count at the paired station-hour level. X covariates:
+paired differences in continuous weather variables, pre/post coarse
+weather-condition indicators, and categorical hour, day_of_week, and week_index
+indicators. Each run omits one city from the pooled controls.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from aiptw_common import PROJECT_ROOT, run_paired_weighting_analysis
 
 CONTROLS = ("chicago", "boston", "philadelphia", "washington_dc")
 RESULTS_DIR = PROJECT_ROOT / "results" / "sensitivities"
-INPUT_PATH = PROJECT_ROOT / "data_clean" / "sensitivities" / "sharp_window_station_hour_panel_weather.csv"
+INPUT_PATH = PROJECT_ROOT / "data_clean" / "main_spec" / "11_sharp_window_station_hour_panel_weather.csv"
 
 
 def main() -> None:

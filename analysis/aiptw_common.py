@@ -1,3 +1,13 @@
+"""
+Shared AIPTW utilities for the station-hour sensitivity scripts.
+
+Default window: September 1-21, 2025 versus November 3-23, 2025. Default
+outcome: ebike_trip_count at the paired station-hour level. Default X
+covariates: paired differences in continuous weather variables plus pre/post
+coarse weather-condition indicators. Calling scripts can additionally request
+categorical hour/day_of_week/week_index controls or delta_daylight.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -108,7 +118,11 @@ def make_config(
 
 def parse_args(description: str, estimand: str, station_weighted: bool) -> AiptwConfig:
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("--input", type=Path, default=PROJECT_ROOT / "data_clean" / "07_station_hour_panel_weather.csv")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=PROJECT_ROOT / "data_clean" / "og_main_spec_sept_nov" / "07_station_hour_panel_weather.csv",
+    )
     parser.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
     parser.add_argument("--n-folds", type=int, default=5)
     parser.add_argument("--clip-low", type=float, default=0.01)
