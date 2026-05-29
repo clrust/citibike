@@ -121,24 +121,35 @@ def result_row(
 TABLE_NOTES = {
     "table_1_key_estimates": (
         "Sharp window: pre-treatment September 26-October 23, 2025; "
-        "post-treatment October 24-November 20, 2025."
+        "post-treatment October 24-November 20, 2025. Estimates use weather and time controls, "
+        "without baseline-demand controls."
+    ),
+    "table_2_control_sensitivity": (
+        "October 24 treatment sharp window: pre-treatment September 26-October 23, 2025; "
+        "post-treatment October 24-November 20, 2025. Estimates use weather and time controls."
     ),
     "table_3_placebo_diagnostics": (
-        "September-November specifications use September 1-21, 2025 versus November 3-23, 2025; "
-        "all rows report row-weighted AIPTW estimates."
+        "September-November specifications use September 1-21, 2025 "
+        "versus November 3-23, 2025; "
+        "all rows report row-weighted AIPTW estimates, without baseline-demand controls."
+    ),
+    "table_4_rolling_att": (
+        "October 24 treatment rolling placebo-style estimates. Each assumed date uses four-week pre/post windows; "
+        "estimates use weather and time controls."
     ),
     "table_5_sharp_window_diagnostics": (
         "Unless otherwise noted, sharp window uses pre-treatment September 26-October 23, 2025 "
-        "and post-treatment October 24-November 20, 2025."
+        "and post-treatment October 24-November 20, 2025. Estimates use weather and time controls, "
+        "without baseline-demand controls."
     ),
     "table_6_oct24_baseline_demand_controls": (
         "Window: September 26-October 23, 2025 vs October 24-November 20, 2025. "
-        "All estimates control for leave-one-out station-hour baseline e-bike demand."
+        "Estimates use weather and time controls plus leave-one-out station-hour baseline e-bike demand."
     ),
     "table_7_june20_baseline_demand_controls": (
         "Window: May 23-June 19, 2025 vs June 20-July 17, 2025. "
         "Chicago is excluded because the June 2025 Divvy station ID change creates false early-window zeros. "
-        "All estimates control for leave-one-out station-hour baseline e-bike demand."
+        "Estimates use weather and time controls plus leave-one-out station-hour baseline e-bike demand."
     ),
     "table_8_june20_no_baseline_controls": (
         "Window: May 23-June 19, 2025 vs June 20-July 17, 2025. "
@@ -628,11 +639,11 @@ def copy_existing_figures() -> None:
 def main() -> None:
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     tables = [
-        ("Sharp-Window AIPTW ATT by Control Group", "table_1_key_estimates", make_key_estimates_table(), 11),
+        ("October 24 Treatment, No Baseline-Demand Controls Sharp-Window AIPTW ATT by Control Group", "table_1_key_estimates", make_key_estimates_table(), 11),
         ("Control-Group Sensitivity", "table_2_control_sensitivity", make_control_sensitivity_table(), 8),
-        ("September-November Sensitivity Specifications", "table_3_placebo_diagnostics", make_diagnostics_table(), 10),
+        ("October 24 Treatment September-November Sensitivity Specifications", "table_3_placebo_diagnostics", make_diagnostics_table(), 10),
         ("Rolling Assumed-Treatment-Date Estimates", "table_4_rolling_att", make_rolling_table(), 8),
-        ("Sharp-Window Diagnostic Specifications", "table_5_sharp_window_diagnostics", make_sharp_window_diagnostics_table(), 9),
+        ("October 24 Treatment Sharp-Window Diagnostic Specifications", "table_5_sharp_window_diagnostics", make_sharp_window_diagnostics_table(), 9),
         (
             "October 24 Baseline-Demand AIPTW ATT by Control Group",
             "table_6_oct24_baseline_demand_controls",
@@ -646,7 +657,7 @@ def main() -> None:
             11,
         ),
         (
-            "June 20 AIPTW ATT by Control Group",
+            "June 20 Treatment, No Baseline-Demand Controls AIPTW ATT by Control Group",
             "table_8_june20_no_baseline_controls",
             make_june20_no_baseline_table(),
             11,

@@ -140,8 +140,20 @@ def format_time_axis(ax, weekly: bool = False, event_date: pd.Timestamp = OCT24,
     ax.grid(axis="y", color="#dddddd", linewidth=0.8)
 
 
-def save_fig(fig, stem: str, out_dir: Path) -> None:
-    fig.tight_layout()
+def save_fig(fig, stem: str, out_dir: Path, bottom_note: str = "") -> None:
+    if bottom_note:
+        fig.text(
+            0.5,
+            0.012,
+            bottom_note,
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color="#334e68",
+        )
+        fig.tight_layout(rect=(0, 0.045, 1, 1))
+    else:
+        fig.tight_layout()
     out_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_dir / f"{stem}.png", dpi=220, bbox_inches="tight")
     fig.savefig(out_dir / f"{stem}.pdf", bbox_inches="tight")
@@ -188,7 +200,12 @@ def plot_nyc_vs_controls_daily_index(city_day: pd.DataFrame) -> None:
         ax.set_ylabel("Index")
         ax.legend(loc="best", frameon=False)
     axes[-1].set_xlabel("Date")
-    save_fig(fig, "descriptive_daily_index_nyc_vs_pooled_controls", DAY_FIGURE_DIR)
+    save_fig(
+        fig,
+        "descriptive_daily_index_nyc_vs_pooled_controls",
+        DAY_FIGURE_DIR,
+        bottom_note="Index = 100 x each city's 7-day rolling ridership divided by that city's September 26-October 23, 2025 average.",
+    )
 
 
 def plot_individual_controls_daily_index(
@@ -201,6 +218,7 @@ def plot_individual_controls_daily_index(
     pre_end: pd.Timestamp = PRE_END,
     event_date: pd.Timestamp = OCT24,
     event_label: str = "Oct 24",
+    index_note: str = "Index = 100 x each city's 7-day rolling ridership divided by that city's pre-period average.",
 ) -> None:
     work = add_indexed_columns(city_day, "date", (f"{outcome}_roll7",), pre_start=pre_start, pre_end=pre_end)
     col = f"{outcome}_roll7_index"
@@ -216,7 +234,7 @@ def plot_individual_controls_daily_index(
     ax.set_ylabel("Index")
     ax.set_xlabel("Date")
     ax.legend(ncol=3, frameon=False)
-    save_fig(fig, stem, DAY_FIGURE_DIR)
+    save_fig(fig, stem, DAY_FIGURE_DIR, bottom_note=index_note)
 
 
 def plot_hourly_nyc_vs_controls(city_hour: pd.DataFrame) -> None:
@@ -236,7 +254,12 @@ def plot_hourly_nyc_vs_controls(city_hour: pd.DataFrame) -> None:
         ax.set_ylabel("Index")
         ax.legend(loc="best", frameon=False)
     axes[-1].set_xlabel("Date")
-    save_fig(fig, "descriptive_hourly_index_nyc_vs_pooled_controls", HOUR_FIGURE_DIR)
+    save_fig(
+        fig,
+        "descriptive_hourly_index_nyc_vs_pooled_controls",
+        HOUR_FIGURE_DIR,
+        bottom_note="Index = 100 x each city's 24-hour rolling ridership divided by that city's September 26-October 23, 2025 average.",
+    )
 
 
 def plot_ebike_share(city_day: pd.DataFrame) -> None:
@@ -286,12 +309,14 @@ def main() -> None:
         "ebike_trips",
         "Daily e-bike trips, indexed: NYC and individual controls",
         "descriptive_daily_ebike_index_nyc_vs_individual_controls",
+        index_note="Index = 100 x each city's 7-day rolling e-bike trips divided by that city's September 26-October 23, 2025 average.",
     )
     plot_individual_controls_daily_index(
         city_day,
         "classic_trips",
         "Daily classic-bike trips, indexed: NYC and individual controls",
         "descriptive_daily_classic_index_nyc_vs_individual_controls",
+        index_note="Index = 100 x each city's 7-day rolling classic-bike trips divided by that city's September 26-October 23, 2025 average.",
     )
     plot_hourly_nyc_vs_controls(city_hour)
     plot_ebike_share(city_day)
@@ -309,6 +334,7 @@ def main() -> None:
         pre_end=JUNE20_PRE_END,
         event_date=JUN20,
         event_label="Jun 20",
+        index_note="Index = 100 x each city's 7-day rolling e-bike trips divided by that city's May 23-June 19, 2025 average.",
     )
     plot_individual_controls_daily_index(
         june20_city_day,
@@ -320,6 +346,7 @@ def main() -> None:
         pre_end=JUNE20_PRE_END,
         event_date=JUN20,
         event_label="Jun 20",
+        index_note="Index = 100 x each city's 7-day rolling e-bike trips divided by that city's May 23-June 19, 2025 average.",
     )
     plot_daily_city_panels(
         june20_city_day,
