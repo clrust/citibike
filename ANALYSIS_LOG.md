@@ -862,6 +862,45 @@ make the analysis auditable without modifying the Human Notes section in
   contributes exactly 672 paired station-hours, so station-weighted and
   row-weighted ATTs are identical by construction for this specification.
 
+### Sharp-Window Main Spec With Propensity Trimming
+
+- Script: `analysis/26_sharp_window_trimmed.py`
+- Status: complete.
+- Purpose: rerun the preferred October 24 sharp-window AIPTW specification
+  dropping rows whose raw propensity score falls outside `[0.01, 0.99]`,
+  instead of retaining all rows with clipped propensity scores.
+- Input: `data_clean/main_spec/11_sharp_window_station_hour_panel_weather.csv`
+- Output:
+  - `results/sensitivities/sharp_window_trimmed_summary.csv`
+  - `results/sensitivities/sharp_window_trimmed_city_diagnostics.csv`
+- Windows:
+  - t0: `2025-09-26 00:00:00` through `2025-10-23 23:00:00`
+  - t1: `2025-10-24 00:00:00` through `2025-11-20 23:00:00`
+- Outcome: `ebike_trip_count` at the paired station-hour level.
+- Covariates in `X`: continuous weather differences, pre/post broad weather
+  condition indicators, and categorical `hour`, `day_of_week`, and
+  `week_index` indicators.
+- Estimate reported: row-weighted only.
+- Trim rule: drop rows with raw `g_hat < 0.01` or raw `g_hat > 0.99`.
+- Rows:
+  - Before trim: `3,431,904`
+  - After trim: `3,354,910`
+  - Dropped: `76,994` (`2.2435%`)
+  - Treated rows dropped: `0`
+  - Control rows dropped: `76,994` (`3.8681%` of control rows)
+- Stations:
+  - Treated stations before/after trim: `2,145` / `2,145`
+  - Control stations before/after trim: `2,962` / `2,962`
+- Result:
+  - Trimmed ATT: `-0.268995`
+  - Standard error: `0.002496`
+  - 95% CI: `[-0.273887, -0.264103]`
+- Comparison to clipped main spec:
+  - Clipped main ATT: `-0.269000`
+  - Difference: `0.000005`
+  - Interpretation note: trimming the outside-range propensity rows instead of
+    clipping them leaves the main estimate essentially unchanged.
+
 ### Rolling Assumed-Treatment-Date ATT Plot
 
 - Build script: `build/rolling_att/01_build_rolling_panel.py`
@@ -873,7 +912,7 @@ make the analysis auditable without modifying the Human Notes section in
 - Clean data:
   - `data_clean/rolling_att/01_rolling_station_hour_panel.csv`
   - `data_clean/rolling_att/01_rolling_station_hour_panel_weather.csv`
-- Broad panel range: `2025-08-15 00:00:00` through
+- Broad panel range: `2025-07-18 00:00:00` through
   `2025-11-27 23:00:00`.
 - Weather source: `data_raw/weather_filled_50km/`.
 - Weather missingness check:
@@ -886,9 +925,18 @@ make the analysis auditable without modifying the Human Notes section in
     exact-window station-retention rule. Those provisional outputs were moved
     to `results/rolling_att/obsolete_no_window_retention/` and should not be
     interpreted.
+  - A later shorter-range corrected run covering September 12-October 31 was
+    moved to `results/rolling_att/obsolete_shorter_date_range/` after the
+    rolling window was extended four weeks earlier. The date-level corrected
+    estimates from that run were reused rather than refit.
   - The final rolling estimates retain stations separately for each assumed
     treatment date only if the station has at least one observed trip in both
     that date's exact four-week pre window and exact four-week post window.
+- Plot note:
+  - The x-axis labels every assumed treatment date.
+  - A vertical marker at `2025-10-03` indicates the first assumed treatment date
+    whose four-week post window includes actual post-October 24 treatment time.
+  - A second vertical marker identifies the actual October 24 policy date.
 - Outcome: `ebike_trip_count` at the paired station-hour level.
 - Treated city: NYC.
 - Control cities: Chicago, Boston, Philadelphia, and Washington DC.
@@ -903,6 +951,10 @@ make the analysis auditable without modifying the Human Notes section in
 
 | Assumed date | ATT | SE | 95% CI | Treated stations | Control stations | Hypothetical trim share |
 |---|---:|---:|---:|---:|---:|---:|
+| 2025-08-15 | `-0.091040` | `0.002511` | `[-0.095961, -0.086118]` | `2,134` | `2,927` | `2.6131%` |
+| 2025-08-22 | `0.036557` | `0.002554` | `[0.031550, 0.041563]` | `2,130` | `2,931` | `0.9915%` |
+| 2025-08-29 | `0.067841` | `0.002601` | `[0.062743, 0.072939]` | `2,126` | `2,945` | `0.5553%` |
+| 2025-09-05 | `0.157263` | `0.002619` | `[0.152129, 0.162396]` | `2,124` | `2,962` | `0.4848%` |
 | 2025-09-12 | `0.167738` | `0.002620` | `[0.162603, 0.172874]` | `2,125` | `2,970` | `0.4298%` |
 | 2025-09-19 | `-0.057345` | `0.002666` | `[-0.062570, -0.052120]` | `2,122` | `2,968` | `0.2331%` |
 | 2025-09-26 | `-0.141515` | `0.002653` | `[-0.146715, -0.136315]` | `2,125` | `2,972` | `0.2061%` |
@@ -914,8 +966,592 @@ make the analysis auditable without modifying the Human Notes section in
 
 - Interpretation note: the October 24 point matches the preferred sharp-window
   main estimate. The rolling curve is not a formal regression event study; it
-  is a placebo/sensitivity curve over assumed treatment dates. Negative
-  estimates appear before October 24, especially around October 3 and October
-  10, so the plot should be read as evidence that the sharp-window estimate is
-  sensitive to broader timing/seasonality patterns, not as isolated visual
-  confirmation of the October 24 policy date.
+  is a placebo/sensitivity curve over assumed treatment dates. Dates through
+  September 26 are clean pre-treatment placebo windows with no actual
+  post-October 24 exposure. The first large negative estimates occur once the
+  assumed post window begins to include actual post-treatment days, starting at
+  October 3. The August-September estimates also move substantially over time,
+  so the plot is best read as a timing sensitivity diagnostic rather than as
+  isolated visual confirmation of the October 24 policy date.
+
+### Sharp Window Baseline-Demand and Log-Scale Sensitivities
+
+- Date run: `2026-05-28`.
+- Purpose: address the concern that NYC has substantially more e-bike rides per
+  station-hour than the control cities, so a common proportional demand shock
+  could appear larger in raw trip counts for NYC.
+- Shared design:
+  - Window: `2025-09-26 00:00:00` through `2025-10-23 23:00:00` versus
+    `2025-10-24 00:00:00` through `2025-11-20 23:00:00`.
+  - Treated city: NYC.
+  - Control cities: Chicago, Boston, Philadelphia, and Washington DC.
+  - Five-fold station-level cross-fitting.
+  - Propensity clipping at `[0.01, 0.99]`.
+  - Weather controls and categorical `hour`, `day_of_week`, and `week_index`
+    controls match the preferred sharp-window main specification.
+- Baseline-demand diagnostic:
+  - Candidate baseline definitions were inspected before fitting. The preferred
+    `station_uid x day_of_week x hour` baseline had only four observations per
+    cell and was judged too noisy: 45.5% of cells had zero total pre-period
+    e-bike trips, and early-versus-late pre-period Spearman correlation was
+    0.680.
+  - The chosen covariate was leave-one-out average pre-treatment
+    `ebike_trip_count` by `station_uid x hour`.
+  - This baseline has 28 pre-period observations per station-hour cell before
+    leave-one-out, 122,568 groups, median `0.259259`, p90 `3.074074`, p95
+    `5.703704`, and 21.8% zero values.
+- Baseline-demand sensitivity:
+  - Script: `analysis/27_sharp_window_baseline_demand_controls.py`.
+  - Outputs:
+    - `results/sensitivities/sharp_window_baseline_demand_controls_summary.csv`
+    - `results/sensitivities/sharp_window_baseline_demand_controls_row_weighted.csv`
+    - `results/sensitivities/sharp_window_baseline_demand_controls_station_weighted.csv`
+    - `results/sensitivities/sharp_window_baseline_demand_controls_baseline_diagnostics.csv`
+  - Outcome: raw `ebike_trip_count` change.
+  - Extra covariate in `X`: `baseline_station_hour_ebike_pre_loo`.
+  - Row-weighted ATT: `0.028009`.
+  - Standard error: `0.004420`.
+  - 95% CI: `[0.019347, 0.036672]`.
+  - Hypothetical trim share from raw propensities outside `[0.01, 0.99]`:
+    `2.0605%`.
+  - Interpretation note: conditioning on station-hour baseline e-bike demand
+    reverses the raw-count ATT from negative to slightly positive. This is a
+    major sensitivity and suggests that baseline demand scale is highly
+    consequential for the raw-count specification.
+- Log1p outcome sensitivity:
+  - Script: `analysis/28_sharp_window_log1p_outcome.py`.
+  - Outputs:
+    - `results/sensitivities/sharp_window_log1p_outcome_summary.csv`
+    - `results/sensitivities/sharp_window_log1p_outcome_row_weighted.csv`
+    - `results/sensitivities/sharp_window_log1p_outcome_station_weighted.csv`
+  - Outcome: `log1p(y1_ebike_trip_count) - log1p(y0_ebike_trip_count)`.
+  - Row-weighted ATT: `-0.044984`.
+  - Standard error: `0.000601`.
+  - 95% CI: `[-0.046161, -0.043807]`.
+  - Hypothetical trim share from raw propensities outside `[0.01, 0.99]`:
+    `2.2435%`.
+  - Interpretation note: on a log-like scale, NYC still has a negative
+    relative change, but the estimand is proportional/log-change rather than
+    lost station-hour trips. This result is more directly responsive to the
+    baseline-scale concern than the raw-count ATT.
+
+### June 20 Baseline-Demand Sensitivity
+
+- Date run: `2026-05-28`.
+- Script: `analysis/june_20/03_june_20_baseline_demand_controls.py`.
+- Run mode: caffeinated with `caffeinate -i`; command exited normally.
+- Purpose: rerun the June 20 sharp-window analysis while controlling for
+  baseline e-bike demand, analogous to the October 24 baseline-demand
+  sensitivity.
+- Window:
+  - Pre-treatment: `2025-05-23 00:00:00` through `2025-06-19 23:00:00`.
+  - Post-treatment: `2025-06-20 00:00:00` through `2025-07-17 23:00:00`.
+- Station inclusion:
+  - The built June 20 panel uses the exact-window station-retention rule:
+    stations must appear with at least one observed trip in both the pre and
+    post windows.
+- Outcome: raw `ebike_trip_count` change at the paired station-hour level.
+- Added covariate in `X`: leave-one-out pre-treatment mean
+  `ebike_trip_count` by `station_uid x hour`
+  (`baseline_station_hour_ebike_pre_loo`).
+- Other covariates: same as the June 20 time-control specification:
+  continuous-weather differences, pre/post broad weather-condition indicators,
+  and categorical `hour`, `day_of_week`, and `week_index` indicators.
+- Outputs:
+  - `results/june_20/june_20_baseline_demand_controls_summary.csv`
+  - `results/june_20/june_20_baseline_demand_controls_row_weighted.csv`
+  - `results/june_20/june_20_baseline_demand_controls_station_weighted.csv`
+  - `results/june_20/june_20_baseline_demand_controls_baseline_diagnostics.csv`
+- Baseline covariate diagnostics:
+  - Rows: `3,343,872`.
+  - Groups: `119,424`.
+  - Mean: `1.046759`.
+  - Median: `0.222222`.
+  - p90: `2.851852`.
+  - p95: `5.259259`.
+  - p99: `11.444444`.
+  - Share zero: `23.4946%`.
+- Result:
+  - Row-weighted ATT: `-0.293970`.
+  - Standard error: `0.003012`.
+  - 95% CI: `[-0.299874, -0.288067]`.
+  - Station-weighted ATT is identical because the retained panel is balanced by
+    station-hour.
+  - Hypothetical trim share from raw propensities outside `[0.01, 0.99]`:
+    `2.1360%`.
+- Comparison:
+  - Prior June 20 sharp-window ATT without baseline-demand covariate:
+    `0.090379`.
+  - Adding baseline station-hour demand reverses the June 20 estimate from
+    positive to substantially negative. This mirrors the October 24 exercise in
+    showing that baseline e-bike demand scale is highly consequential, though
+    the direction of the reversal differs across the two dates.
+
+### Baseline-Demand Control-Group Sensitivities
+
+- Date run: `2026-05-28`.
+- Run mode: caffeinated with `caffeinate -i`; both scripts exited normally.
+- Shared added covariate: leave-one-out pre-treatment mean
+  `ebike_trip_count` by `station_uid x hour`
+  (`baseline_station_hour_ebike_pre_loo`).
+- Other covariates: weather controls and categorical `hour`, `day_of_week`,
+  and `week_index` controls.
+- Note on interruption: the workstation lost Wi-Fi during the June 20 run, but
+  the analysis was local-only and continued running. Outputs were written
+  normally.
+
+#### October 24 Baseline-Demand Control-Group Sensitivities
+
+- Script: `analysis/29_sharp_window_baseline_demand_control_groups.py`.
+- Outputs:
+  - `results/sensitivities/sharp_window_baseline_demand_one_control_city_summary.csv`
+  - `results/sensitivities/sharp_window_baseline_demand_leave_one_control_out_summary.csv`
+- Window: `2025-09-26 00:00:00` through `2025-10-23 23:00:00` versus
+  `2025-10-24 00:00:00` through `2025-11-20 23:00:00`.
+- Pooled baseline-demand estimate for comparison:
+  - ATT: `0.028009`.
+  - SE: `0.004420`.
+  - 95% CI: `[0.019347, 0.036672]`.
+- Individual-control estimates:
+
+| Control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `0.168874` | `0.005111` | `[0.158856, 0.178892]` | `6.8603%` |
+| Boston | `-0.042680` | `0.004312` | `[-0.051132, -0.034229]` | `13.1929%` |
+| Philadelphia | `-0.017351` | `0.005641` | `[-0.028408, -0.006295]` | `14.4159%` |
+| Washington DC | `-0.041638` | `0.004415` | `[-0.050292, -0.032984]` | `1.7748%` |
+
+- Leave-one-control-out estimates:
+
+| Omitted control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `-0.049784` | `0.004591` | `[-0.058783, -0.040786]` | `0.4667%` |
+| Boston | `0.029210` | `0.004703` | `[0.019991, 0.038428]` | `2.4209%` |
+| Philadelphia | `0.029107` | `0.004499` | `[0.020290, 0.037925]` | `2.1785%` |
+| Washington DC | `0.092551` | `0.004962` | `[0.082826, 0.102277]` | `2.5779%` |
+
+- Interpretation note: with baseline-demand controls, the October 24 pooled
+  estimate is small and positive, but the individual-control estimates vary in
+  sign. Chicago alone implies a positive estimate, while Boston, Philadelphia,
+  and Washington DC alone imply negative estimates. The leave-one-out checks
+  show that omitting Chicago makes the estimate negative, while omitting
+  Washington DC makes it more positive.
+
+#### June 20 Baseline-Demand Control-Group Sensitivities
+
+- Script: `analysis/june_20/04_june_20_baseline_demand_control_groups.py`.
+- Outputs:
+  - `results/june_20/june_20_baseline_demand_one_control_city_summary.csv`
+  - `results/june_20/june_20_baseline_demand_leave_one_control_out_summary.csv`
+- Window: `2025-05-23 00:00:00` through `2025-06-19 23:00:00` versus
+  `2025-06-20 00:00:00` through `2025-07-17 23:00:00`.
+- Pooled baseline-demand estimate for comparison:
+  - ATT: `-0.293970`.
+  - SE: `0.003012`.
+  - 95% CI: `[-0.299874, -0.288067]`.
+- Individual-control estimates:
+
+| Control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `-0.922870` | `0.003314` | `[-0.929365, -0.916375]` | `10.7162%` |
+| Boston | `0.008032` | `0.002843` | `[0.002460, 0.013604]` | `16.2486%` |
+| Philadelphia | `0.035781` | `0.002681` | `[0.030525, 0.041036]` | `23.3264%` |
+| Washington DC | `0.020762` | `0.002774` | `[0.015325, 0.026199]` | `7.1012%` |
+
+- Leave-one-control-out estimates:
+
+| Omitted control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `0.034768` | `0.002726` | `[0.029425, 0.040111]` | `3.2937%` |
+| Boston | `-0.325408` | `0.002989` | `[-0.331267, -0.319550]` | `2.9191%` |
+| Philadelphia | `-0.325851` | `0.003061` | `[-0.331850, -0.319852]` | `2.4162%` |
+| Washington DC | `-0.582479` | `0.003595` | `[-0.589524, -0.575433]` | `3.7663%` |
+
+- Interpretation note: the June 20 baseline-demand estimate is extremely
+  sensitive to Chicago. Chicago alone implies a very large negative estimate,
+  while Boston, Philadelphia, and Washington DC alone imply small positive
+  estimates. Omitting Chicago from the pooled controls also makes the estimate
+  small and positive. This suggests the June 20 baseline-demand result is
+  driven heavily by Chicago's control trajectory rather than being stable
+  across control groups.
+
+### Baseline-Demand Fixed-Nuisance Station Bootstraps
+
+- Date run: `2026-05-28`.
+- Run mode: caffeinated with `caffeinate -i`; both scripts exited normally.
+- Bootstrap method:
+  - Fit the five-fold cross-fitted XGBoost nuisance models once.
+  - Collapse row-level AIPTW numerator and denominator contributions to
+    `station_uid` clusters.
+  - Resample station clusters with replacement.
+  - Recompute the normalized row-weighted ATT for each bootstrap draw.
+  - Number of draws: `500`.
+  - Nuisance functions are fixed across bootstrap draws.
+- Shared added covariate: leave-one-out pre-treatment mean
+  `ebike_trip_count` by `station_uid x hour`
+  (`baseline_station_hour_ebike_pre_loo`).
+
+#### October 24 Baseline-Demand Bootstrap
+
+- Script: `analysis/30_bootstrap_sharp_window_baseline_demand.py`.
+- Output: `results/main_spec/sharp_window_baseline_demand_bootstrap_summary.csv`.
+- Station clusters: `5,107`.
+- Point estimate: `0.028009`.
+- Analytic SE: `0.004420`.
+- Analytic 95% CI: `[0.019347, 0.036672]`.
+- Bootstrap SE: `0.014044`.
+- Bootstrap 95% CI: `[0.000971, 0.054942]`.
+- Interpretation note: the fixed-nuisance station bootstrap interval is much
+  wider than the analytic interval, but remains barely above zero in this
+  500-draw run.
+
+#### June 20 Baseline-Demand Bootstrap
+
+- Script: `analysis/june_20/05_bootstrap_june_20_baseline_demand.py`.
+- Output: `results/june_20/june_20_baseline_demand_bootstrap_summary.csv`.
+- Station clusters: `4,976`.
+- Point estimate: `-0.293970`.
+- Analytic SE: `0.003012`.
+- Analytic 95% CI: `[-0.299874, -0.288067]`.
+- Bootstrap SE: `0.015133`.
+- Bootstrap 95% CI: `[-0.323228, -0.264520]`.
+- Interpretation note: the bootstrap interval is much wider than the analytic
+  interval, but the June 20 pooled baseline-demand estimate remains clearly
+  negative under this fixed-nuisance station bootstrap.
+
+### Baseline-Demand Propensity Trimming Sensitivities
+
+- Date run: `2026-05-28`.
+- Run mode: caffeinated with `caffeinate -i`; both scripts exited normally.
+- Purpose: rerun the pooled baseline-demand specifications with propensity
+  trimming instead of clipping.
+- Trim rule: drop rows with raw `g_hat` outside `[0.01, 0.99]`.
+- Shared covariates: weather controls, categorical `hour`, `day_of_week`, and
+  `week_index` controls, and leave-one-out pre-treatment mean
+  `ebike_trip_count` by `station_uid x hour`.
+
+#### October 24 Baseline-Demand Trimming
+
+- Script: `analysis/31_sharp_window_baseline_demand_trimmed.py`.
+- Outputs:
+  - `results/sensitivities/sharp_window_baseline_demand_trimmed_summary.csv`
+  - `results/sensitivities/sharp_window_baseline_demand_trimmed_city_diagnostics.csv`
+- Clipped pooled baseline-demand estimate for comparison:
+  - ATT: `0.028009`.
+  - SE: `0.004420`.
+  - 95% CI: `[0.019347, 0.036672]`.
+- Trimmed result:
+  - ATT: `0.028043`.
+  - SE: `0.004423`.
+  - 95% CI: `[0.019375, 0.036711]`.
+- Trimming diagnostics:
+  - Rows before trim: `3,431,904`.
+  - Rows after trim: `3,361,189`.
+  - Rows dropped: `70,715` (`2.0605%`).
+  - Treated rows dropped: `2,706`.
+  - Control rows dropped: `68,009`.
+  - Treated stations before/after: `2,145` / `2,145`.
+  - Control stations before/after: `2,962` / `2,962`.
+- Interpretation note: trimming instead of clipping has essentially no effect
+  on the October 24 pooled baseline-demand estimate.
+
+#### June 20 Baseline-Demand Trimming
+
+- Script: `analysis/june_20/07_june_20_baseline_demand_trimmed.py`.
+- Outputs:
+  - `results/june_20/june_20_baseline_demand_trimmed_summary.csv`
+  - `results/june_20/june_20_baseline_demand_trimmed_city_diagnostics.csv`
+- Clipped pooled baseline-demand estimate for comparison:
+  - ATT: `-0.293970`.
+  - SE: `0.003012`.
+  - 95% CI: `[-0.299874, -0.288067]`.
+- Trimmed result:
+  - ATT: `-0.257476`.
+  - SE: `0.002951`.
+  - 95% CI: `[-0.263260, -0.251692]`.
+- Trimming diagnostics:
+  - Rows before trim: `3,343,872`.
+  - Rows after trim: `3,272,448`.
+  - Rows dropped: `71,424` (`2.1360%`).
+  - Treated rows dropped: `41,865`.
+  - Control rows dropped: `29,559`.
+  - Treated stations before/after: `2,146` / `2,146`.
+  - Control stations before/after: `2,830` / `2,830`.
+- Interpretation note: trimming makes the June 20 pooled baseline-demand
+  estimate less negative by about `0.0365`, but it remains clearly negative.
+
+### June 20 No-Baseline Control-Group Sensitivities
+
+- Date run: `2026-05-28`.
+- Script: `analysis/june_20/06_june_20_control_groups.py`.
+- Run mode: caffeinated with `caffeinate -i`; script exited normally.
+- Purpose: create the June 20 analog of the October 24 no-baseline
+  control-group sensitivity table.
+- Window:
+  - Pre-treatment: `2025-05-23 00:00:00` through `2025-06-19 23:00:00`.
+  - Post-treatment: `2025-06-20 00:00:00` through `2025-07-17 23:00:00`.
+- Outcome: raw `ebike_trip_count` change at the paired station-hour level.
+- Covariates: continuous-weather differences, pre/post broad weather-condition
+  indicators, and categorical `hour`, `day_of_week`, and `week_index`
+  indicators. No baseline-demand covariate.
+- Outputs:
+  - `results/june_20/june_20_one_control_city_summary.csv`
+  - `results/june_20/june_20_leave_one_control_out_summary.csv`
+- Pooled no-baseline estimate for comparison:
+  - ATT: `0.090379`.
+  - Analytic SE: `0.002519`.
+  - Analytic 95% CI: `[0.085441, 0.095316]`.
+  - Bootstrap 95% CI: `[0.072855, 0.108151]`.
+- Individual-control estimates:
+
+| Control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `-0.004647` | `0.002492` | `[-0.009532, 0.000238]` | `2.3931%` |
+| Boston | `0.109071` | `0.002513` | `[0.104146, 0.113996]` | `0.3261%` |
+| Philadelphia | `0.118403` | `0.002542` | `[0.113420, 0.123385]` | `6.0293%` |
+| Washington DC | `0.091171` | `0.002516` | `[0.086239, 0.096103]` | `2.0300%` |
+
+- Leave-one-control-out estimates:
+
+| Omitted control city | ATT | SE | 95% CI | Hypothetical trim share |
+|---|---:|---:|---:|---:|
+| Chicago | `0.119968` | `0.002521` | `[0.115027, 0.124908]` | `0.1201%` |
+| Boston | `0.081060` | `0.002520` | `[0.076122, 0.085999]` | `0.2241%` |
+| Philadelphia | `0.079435` | `0.002513` | `[0.074509, 0.084360]` | `0.1777%` |
+| Washington DC | `0.073302` | `0.002519` | `[0.068366, 0.078239]` | `0.1992%` |
+
+- Table output:
+  - `figures/tables/table_8_june20_no_baseline_controls/`.
+- Interpretation note: without baseline-demand controls, the June 20 pooled
+  estimate is positive and fairly stable across leave-one-out checks. Chicago
+  alone is the exception among individual controls, giving an estimate close
+  to zero.
+
+### June 20 Citi Bike E-Bike Speed Analysis
+
+- Date run: `2026-05-28`.
+- Build script: `build/speed/02_build_june20_speed_panel.py`.
+- Analysis script: `analysis/speed/01_june20_speed_aiptw.py`.
+- Run mode: caffeinated with `caffeinate -i`; both scripts exited normally.
+- Purpose: test whether the June 20, 2025 Citi Bike operational e-bike speed
+  reduction changed average speed among Citi e-bike rides.
+- Treatment/control:
+  - Treated: Citi Bike `electric_bike` rides.
+  - Control: Citi Bike `classic_bike` rides.
+- Window:
+  - Pre-treatment: `2025-05-23` through `2025-06-19`.
+  - Post-treatment: `2025-06-20` through `2025-07-17`.
+- Unit of analysis:
+  - `OD pair x ride type x week_index x day_of_week`.
+  - Each row has a matched pre and post average speed for the same OD pair,
+    ride type, week-within-window, and day of week.
+- Outcome:
+  - `avg_speed_mph_post - avg_speed_mph_pre`.
+  - Speed uses straight-line origin-destination distance divided by trip
+    duration; this is not route distance.
+- Retention rule:
+  - OD pairs must have both classic-bike and e-bike rides in both pre and post
+    windows.
+  - OD pairs must have at least `50` total classic rides and at least `50`
+    total e-bike rides across the full 56-day window.
+- Ride-level speed filters:
+  - Duration between `1` and `180` minutes.
+  - Straight-line OD distance at least `0.05` miles.
+  - Average straight-line speed between `0.5` and `30` mph.
+- Outputs:
+  - `data_clean/speed/02_june20_speed_paired_panel_threshold50.csv`.
+  - `data_clean/speed/02_june20_speed_panel_diagnostics.csv`.
+  - `results/speed/01_june20_speed_aiptw_threshold50.csv`.
+  - `results/speed/01_june20_speed_aiptw_threshold50_ride_type_diagnostics.csv`.
+  - `results/speed/01_june20_speed_aiptw_threshold50_predictions.csv`.
+- Build diagnostics:
+  - Earlier coverage-only threshold-50 diagnostic implied `148,479` paired
+    rows.
+  - After applying speed-validity filters before pairing, the analysis panel
+    contains `133,234` paired rows.
+  - Retained OD pairs: `4,175`.
+  - Classic-bike paired rows: `60,927`.
+  - E-bike paired rows: `72,307`.
+  - Median pre/post rides per paired cell: `2` / `2`.
+  - Missing weather rows: `0`.
+- Unadjusted paired speed changes:
+  - Classic bikes: mean pre speed `5.9849` mph, mean post speed `5.9097` mph,
+    mean change `-0.0752` mph.
+  - E-bikes: mean pre speed `7.6761` mph, mean post speed `7.4312` mph, mean
+    change `-0.2449` mph.
+- AIPTW result:
+  - ATT: `-0.166926` mph.
+  - Analytic SE: `0.011404`.
+  - 95% CI: `[-0.189278, -0.144574]`.
+  - Rows: `133,234`.
+  - Treated rows: `72,307`.
+  - Control rows: `60,927`.
+- Propensity-score diagnostics:
+  - Clipping range: `[0.01, 0.99]`.
+  - Raw propensity range: `[0.516018, 0.580750]`.
+  - Mean clipped propensity: `0.542716`.
+  - Rows clipped: `0`.
+  - Hypothetical rows lost under trimming: `0` (`0.0000%`).
+  - G-model AUC: `0.515568`.
+  - G-model log loss: `0.689098`.
+  - Q-model RMSE: `2.105338`.
+- Interpretation note: under this OD-day cell design, e-bike average
+  straight-line speed fell by about `0.167` mph more than classic-bike speed
+  after June 20. The propensity scores are extremely non-extreme here, so
+  clipping/trimming is not driving the result.
+
+### June 20 Citi Bike E-Bike Speed Threshold Sensitivities
+
+- Date run: `2026-05-28`.
+- Scripts:
+  - `build/speed/02_build_june20_speed_panel.py`.
+  - `analysis/speed/01_june20_speed_aiptw.py`.
+- Run mode: caffeinated with `caffeinate -i`; all scripts exited normally.
+- Purpose: test whether the speed ATT depends on the minimum total ride-count
+  threshold used to retain OD pairs.
+- Design held fixed across thresholds:
+  - Window: `2025-05-23` through `2025-06-19` versus `2025-06-20` through
+    `2025-07-17`.
+  - Treatment/control: Citi Bike e-bikes versus Citi Bike classic bikes.
+  - Outcome: post-minus-pre change in average straight-line speed at the
+    `OD pair x ride type x week_index x day_of_week` level.
+  - Covariates: paired daily weather differences, pre/post broad weather
+    condition indicators, and categorical `day_of_week` and `week_index`
+    indicators.
+  - Speed filters: duration `1`-`180` minutes, straight-line OD distance at
+    least `0.05` miles, and straight-line speed `0.5`-`30` mph.
+  - Propensity clipping range: `[0.01, 0.99]`.
+- Summary output:
+  - `results/speed/01_june20_speed_threshold_sensitivity_summary.csv`.
+
+| Min rides per OD/type | OD pairs | Rows | E-bike rows | Classic rows | ATT mph | SE | 95% CI | Trim share |
+|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| `30` | `11,247` | `256,416` | `145,761` | `110,655` | `-0.174274` | `0.008507` | `[-0.190947, -0.157600]` | `0.0000%` |
+| `50` | `4,175` | `133,234` | `72,307` | `60,927` | `-0.166926` | `0.011404` | `[-0.189278, -0.144574]` | `0.0000%` |
+| `75` | `1,664` | `65,667` | `34,602` | `31,065` | `-0.182522` | `0.015397` | `[-0.212701, -0.152343]` | `0.0000%` |
+| `100` | `788` | `34,866` | `18,067` | `16,799` | `-0.201293` | `0.019976` | `[-0.240446, -0.162140]` | `0.0000%` |
+
+- Propensity diagnostics:
+  - No threshold had any propensity scores outside `[0.01, 0.99]`.
+  - Raw propensity ranges were mild:
+    - threshold `30`: `[0.538948, 0.616769]`.
+    - threshold `50`: `[0.516018, 0.580750]`.
+    - threshold `75`: `[0.506626, 0.563155]`.
+    - threshold `100`: `[0.498411, 0.543851]`.
+- Interpretation note: the estimated e-bike speed decline is stable across
+  OD-pair ride-count thresholds and becomes somewhat more negative under the
+  strictest threshold. This supports the conclusion that the June 20 speed
+  reduction lowered realized straight-line e-bike speed relative to classic
+  bikes, though the estimand remains an OD-day-cell average rather than a
+  ride-weighted average.
+
+### June 20 No-Chicago Reruns
+
+- Date run: `2026-05-28`.
+- Reason: the June 20 descriptive plot revealed false Chicago zeros from
+  `2025-05-23` through `2025-05-30`. Raw Divvy has normal rides on those dates,
+  but Divvy station IDs appear to change around `2025-06-01`, from numeric-like
+  IDs to `CHI...` IDs. Because the station-hour panel retains stations by
+  `start_station_id` presence in both exact windows, the June-style Chicago
+  stations have no observations in the first eight pre-window days and are
+  filled as zeros.
+- Decision: rerun June 20 count analyses excluding Chicago rather than
+  introducing a fuzzy Divvy station crosswalk.
+- Control cities retained:
+  - Boston.
+  - Philadelphia.
+  - Washington DC.
+- Scripts:
+  - `analysis/june_20/08_june_20_no_chicago_control_groups.py`.
+  - `analysis/june_20/09_bootstrap_june_20_no_chicago.py`.
+  - `analysis/june_20/10_june_20_baseline_demand_no_chicago_control_groups.py`.
+  - `analysis/june_20/11_bootstrap_june_20_baseline_demand_no_chicago.py`.
+- Run mode: caffeinated with `caffeinate -i`; all scripts exited normally.
+- Outputs:
+  - `results/june_20_no_chicago/june_20_no_chicago_pooled_summary.csv`.
+  - `results/june_20_no_chicago/june_20_no_chicago_one_control_city_summary.csv`.
+  - `results/june_20_no_chicago/june_20_no_chicago_leave_one_control_out_summary.csv`.
+  - `results/june_20_no_chicago/june_20_no_chicago_bootstrap_summary.csv`.
+  - `results/june_20_no_chicago/june_20_baseline_demand_no_chicago_pooled_summary.csv`.
+  - `results/june_20_no_chicago/june_20_baseline_demand_no_chicago_one_control_city_summary.csv`.
+  - `results/june_20_no_chicago/june_20_baseline_demand_no_chicago_leave_one_control_out_summary.csv`.
+  - `results/june_20_no_chicago/june_20_baseline_demand_no_chicago_bootstrap_summary.csv`.
+- Rebuilt paper tables:
+  - `figures/tables/table_7_june20_baseline_demand_controls/`.
+  - `figures/tables/table_8_june20_no_baseline_controls/`.
+  - Table notes now state that Chicago is excluded because of the Divvy station
+    ID break.
+
+#### No-Baseline No-Chicago Results
+
+- Pooled ATT excluding Chicago:
+  - ATT: `0.119968`.
+  - Analytic SE: `0.002521`.
+  - Analytic 95% CI: `[0.115027, 0.124908]`.
+  - Bootstrap SE: `0.009365`.
+  - Bootstrap 95% CI: `[0.100771, 0.139498]`.
+  - Rows: `2,534,784`.
+  - Hypothetical trim share: `0.1201%`.
+- Cross-check:
+  - New no-Chicago pooled estimate exactly matches the prior
+    `june_20_leave_one_out_excluding_chicago_row_weighted.csv` estimate.
+- Individual-control estimates:
+  - Boston: ATT `0.109071`, 95% CI `[0.104146, 0.113996]`.
+  - Philadelphia: ATT `0.118403`, 95% CI `[0.113420, 0.123385]`.
+  - Washington DC: ATT `0.091171`, 95% CI `[0.086239, 0.096103]`.
+- Leave-one-out among retained controls:
+  - Excluding Boston: ATT `0.117818`, 95% CI `[0.112823, 0.122814]`.
+  - Excluding Philadelphia: ATT `0.111115`, 95% CI `[0.106165, 0.116064]`.
+  - Excluding Washington DC: ATT `0.117606`, 95% CI `[0.112632, 0.122580]`.
+
+#### Baseline-Demand No-Chicago Results
+
+- Pooled ATT excluding Chicago:
+  - ATT: `0.034768`.
+  - Analytic SE: `0.002726`.
+  - Analytic 95% CI: `[0.029425, 0.040111]`.
+  - Bootstrap SE: `0.009492`.
+  - Bootstrap 95% CI: `[0.014459, 0.054588]`.
+  - Rows: `2,534,784`.
+  - Hypothetical trim share: `3.2937%`.
+- Cross-check:
+  - New no-Chicago pooled estimate exactly matches the prior
+    `june_20_baseline_demand_leave_one_out_excluding_chicago_row_weighted.csv`
+    estimate.
+- Individual-control estimates:
+  - Boston: ATT `0.007979`, 95% CI `[0.002126, 0.013831]`.
+  - Philadelphia: ATT `0.036035`, 95% CI `[0.030647, 0.041423]`.
+  - Washington DC: ATT `0.020550`, 95% CI `[0.015048, 0.026052]`.
+- Leave-one-out among retained controls:
+  - Excluding Boston: ATT `0.034629`, 95% CI `[0.029216, 0.040041]`.
+  - Excluding Philadelphia: ATT `0.026094`, 95% CI `[0.020702, 0.031486]`.
+  - Excluding Washington DC: ATT `0.027467`, 95% CI `[0.022077, 0.032856]`.
+
+### June 20 Speed Threshold Bootstrap CIs
+
+- Date run: `2026-05-28`.
+- Script: `analysis/speed/02_bootstrap_june20_speed_thresholds.py`.
+- Run mode: caffeinated with `caffeinate -i`; script exited normally.
+- Bootstrap method:
+  - Fit the cross-fitted XGBoost nuisance models once for each threshold.
+  - Resample `station_uid` clusters, where `station_uid` is the OD-pair ID in
+    this speed panel.
+  - Recompute the normalized AIPTW ATT for each bootstrap draw.
+  - Do not refit XGBoost inside bootstrap draws.
+- Number of bootstrap draws: `500`.
+- Outputs:
+  - `results/speed/02_june20_speed_threshold_bootstrap_summary.csv`.
+  - `results/speed/02_june20_speed_threshold_bootstrap_draws.csv`.
+
+| Min rides per OD/type | ATT mph | Analytic SE | Analytic 95% CI | Bootstrap SE | Bootstrap 95% CI | OD clusters |
+|---:|---:|---:|---|---:|---|---:|
+| `30` | `-0.174274` | `0.008507` | `[-0.190947, -0.157600]` | `0.008950` | `[-0.189343, -0.154522]` | `11,247` |
+| `50` | `-0.166926` | `0.011404` | `[-0.189278, -0.144574]` | `0.011989` | `[-0.191733, -0.144486]` | `4,175` |
+| `75` | `-0.182522` | `0.015397` | `[-0.212701, -0.152343]` | `0.015813` | `[-0.211603, -0.150221]` | `1,664` |
+| `100` | `-0.201293` | `0.019976` | `[-0.240446, -0.162140]` | `0.019909` | `[-0.238678, -0.159773]` | `788` |
+
+- Interpretation note: fixed-nuisance OD-pair bootstrap uncertainty is very
+  close to the analytic uncertainty for all four speed thresholds. This is
+  reassuring for the speed analysis because the bootstrap CIs do not materially
+  weaken the conclusion that e-bike average straight-line speed fell relative
+  to classic bikes after June 20.

@@ -24,9 +24,9 @@ full_data_clean <- full_data %>%
   ungroup() %>%
   group_by(treated_city, date) %>%
   mutate(treated_station_day_ebike_rides = sum(ebike_trip_count),
-         treated_station_day_classic_rides = sum(classic_trip_count))
+         treated_station_day_classic_rides = sum(classic_trip_count)) %>%
+  mutate(mean_treated_station_day_ebike_rides = mean(ebike_trip_count))
   
-
 # plot with citywide hourly demand across windows
 city_hourly <- full_data_clean %>%
   ungroup() %>%
@@ -70,6 +70,4 @@ ggplot(citi_treat_hourly) +
                 color = "blue")
 
 
-
-
-
+mean(full_data$ebike_trip_count)

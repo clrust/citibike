@@ -15,6 +15,7 @@ that date's exact post window.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -39,8 +40,13 @@ from aiptw_common import (  # noqa: E402
 
 INPUT_PATH = PROJECT_ROOT / "data_clean" / "rolling_att" / "01_rolling_station_hour_panel_weather.csv"
 RESULTS_DIR = PROJECT_ROOT / "results" / "rolling_att"
+DATE_LEVEL_DIR = RESULTS_DIR / "date_level"
 SUMMARY_OUT = RESULTS_DIR / "rolling_att_summary.csv"
 ASSUMED_DATES = (
+    "2025-08-15",
+    "2025-08-22",
+    "2025-08-29",
+    "2025-09-05",
     "2025-09-12",
     "2025-09-19",
     "2025-09-26",
@@ -73,6 +79,17 @@ def windows_for_date(date: str) -> tuple[pd.Timestamp, pd.Timestamp, pd.Timestam
     t1_start = assumed
     t1_end = assumed + pd.Timedelta(days=28) - pd.Timedelta(hours=1)
     return t0_start, t0_end, t1_start, t1_end
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--dates",
+        nargs="+",
+        default=list(ASSUMED_DATES),
+        help="Assumed treatment dates to estimate. The combined summary is rebuilt from all available date results.",
+    )
+    return parser.parse_args()
 
 
 def retained_stations(panel: pd.DataFrame, t0_start: pd.Timestamp, t0_end: pd.Timestamp, t1_start: pd.Timestamp, t1_end: pd.Timestamp) -> set[str]:
@@ -148,7 +165,7 @@ def run_one_date(panel: pd.DataFrame, date: str) -> pd.DataFrame:
         estimand=f"NYC rolling sharp-window ATT assuming treatment on {date} (row-weighted)",
         station_weighted=False,
         input_path=INPUT_PATH,
-        results_dir=RESULTS_DIR,
+        results_dir=DATE_LEVEL_DIR,
         output_stem=f"rolling_att_{date}",
         t0_start=str(t0_start),
         t0_end=str(t0_end),
@@ -171,14 +188,16 @@ def run_one_date(panel: pd.DataFrame, date: str) -> pd.DataFrame:
     return result
 
 
-def main() -> None:
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    panel = pd.read_csv(INPUT_PATH, usecols=USECOLS, parse_dates=["station_hour"], low_memory=False)
-    panel = panel[panel["city"].isin(("nyc", "chicago", "boston", "philadelphia", "washington_dc"))].copy()
+def rebuild_summary() -> pd.DataFrame:
     rows = []
     for date in ASSUMED_DATES:
-        print(f"Running assumed treatment date {date}")
-        rows.append(run_one_date(panel, date))
+        path = DATE_LEVEL_DIR / f"rolling_att_{date}.csv"
+        if path.exists():
+            result = pd.read_csv(path)
+            result["assumed_treatment_date"] = date
+            rows.append(result)
+    if not rows:
+        raise FileNotFoundError(f"No rolling date-level results found in {RESULTS_DIR}")
 
     summary = pd.concat(rows, ignore_index=True)
     front_cols = [
@@ -197,6 +216,20 @@ def main() -> None:
     ]
     summary = summary.loc[:, front_cols + [col for col in summary.columns if col not in front_cols]]
     summary.to_csv(SUMMARY_OUT, index=False)
+    return summary
+
+
+def main() -> None:
+    args = parse_args()
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    DATE_LEVEL_DIR.mkdir(parents=True, exist_ok=True)
+    panel = pd.read_csv(INPUT_PATH, usecols=USECOLS, parse_dates=["station_hour"], low_memory=False)
+    panel = panel[panel["city"].isin(("nyc", "chicago", "boston", "philadelphia", "washington_dc"))].copy()
+    for date in args.dates:
+        print(f"Running assumed treatment date {date}")
+        run_one_date(panel, date)
+
+    rebuild_summary()
     print(f"Wrote {SUMMARY_OUT}")
 
 

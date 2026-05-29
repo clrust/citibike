@@ -5,7 +5,7 @@ The rolling analysis evaluates multiple assumed treatment dates around the
 October 24 policy date. This build writes one broad panel covering all hours
 needed by those rolling four-week pre/post windows:
 
-    broad range: 2025-08-15 00:00 through 2025-11-27 23:00
+    broad range: 2025-07-18 00:00 through 2025-11-27 23:00
 
 Station retention for each assumed treatment date is handled later in the
 analysis script. Here, a station only needs to appear at least once in the
@@ -36,8 +36,8 @@ from panel_utils import (  # noqa: E402
 )
 
 
-MONTHS = ["2025-08", "2025-09", "2025-10", "2025-11"]
-BROAD_START = pd.Timestamp("2025-08-15")
+MONTHS = ["2025-07", "2025-08", "2025-09", "2025-10", "2025-11"]
+BROAD_START = pd.Timestamp("2025-07-18")
 BROAD_END = pd.Timestamp("2025-11-27 23:00:00")
 PANEL_OUT = PROJECT_ROOT / "data_clean" / "rolling_att" / "01_rolling_station_hour_panel.csv"
 WEATHER_OUT = PROJECT_ROOT / "data_clean" / "rolling_att" / "01_rolling_station_hour_panel_weather.csv"
